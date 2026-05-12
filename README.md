@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bonzai Payments App 🌱💳
 
-## Getting Started
+**Aplicación de gestión de pagos del marketplace botánico Bonzai.**
 
-First, run the development server:
+Procesamiento de cobros, billeteras virtuales, disputas y reembolsos para el marketplace de plantas, plantines, semillas e insumos.
+
+## Stack
+
+| Capa | Tecnología |
+|------|-----------|
+| Framework | Next.js 15 (App Router) |
+| Lenguaje | TypeScript |
+| Estilos | Tailwind CSS 4 |
+| ORM | Prisma |
+| Base de datos | PostgreSQL |
+| Auth | Clerk |
+| Pagos | Mercado Pago (sandbox) |
+| Deploy | Vercel |
+
+## Setup local
 
 ```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Copiar variables de entorno
+cp .env.example .env.local
+# Completar los valores en .env.local
+
+# 3. Generar Prisma Client
+npx prisma generate
+
+# 4. Ejecutar migraciones (requiere DATABASE_URL configurado)
+npx prisma migrate dev
+
+# 5. (Opcional) Cargar datos de prueba
+npx prisma db seed
+
+# 6. Iniciar servidor de desarrollo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Usuarios de prueba
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Tipo | Acceso |
+|------|--------|
+| Comprador | Registrarse con rol `buyer` |
+| Vendedor | Registrarse con rol `seller` |
+| Admin | Usuario con rol `payments_admin` en Clerk |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Endpoints API
 
-## Learn More
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/api/payments/checkout` | Iniciar pago (Buyer App) |
+| `POST` | `/api/payments/{txnId}/delivered` | Notificar entrega (Shipping App) |
+| `GET` | `/api/payments/{txnId}/status` | Estado del pago (Seller App) |
+| `POST` | `/api/webhooks/mercadopago` | Webhook Mercado Pago |
+| `GET` | `/api/payments/balance` | Consultar saldo (Seller/Admin) |
+| `POST` | `/api/payments/{orderId}/dispute` | Abrir disputa (Buyer App) |
+| `POST` | `/api/payments/{orderId}/resolve-dispute` | Resolver disputa (Admin) |
+| `POST` | `/api/payments/{orderId}/refund` | Reembolso (Admin) |
+| `GET` | `/api/admin/ledger` | Libro mayor (Admin) |
 
-To learn more about Next.js, take a look at the following resources:
+## Integrante
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Santino Trevisan** — Payments App  
+Proyecto IAW 2026 — Comisión Bonzai
