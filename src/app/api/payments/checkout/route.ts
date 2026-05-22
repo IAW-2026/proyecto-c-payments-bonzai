@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
           failure: `${appUrl}/dashboard?payment=failure&txn=${transaction.id}`,
           pending: `${appUrl}/dashboard?payment=pending&txn=${transaction.id}`,
         },
-        auto_return: "approved",
+        auto_return: appUrl.includes("localhost") ? undefined : "approved",
         // URL del webhook (MP la llama cuando cambia el estado del pago)
         notification_url: `${appUrl}/api/webhooks/mercadopago`,
       },
@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
         error: "PAYMENT_FAILED",
         message:
           error instanceof Error ? error.message : "Error al procesar el pago.",
+        details: JSON.stringify(error, Object.getOwnPropertyNames(error))
       },
       { status: 500 }
     );
