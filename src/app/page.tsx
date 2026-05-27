@@ -14,10 +14,10 @@ function HeroButtons() {
   if (isSignedIn) {
     return (
       <Link href="/dashboard">
-        <Button size="lg">
+        <button className="gradient-primary rounded px-8 py-4 text-base font-medium text-on-primary transition-all duration-300 hover:opacity-90 active:scale-[0.98]">
           Ir al dashboard
           <svg
-            className="h-4 w-4"
+            className="ml-2 inline-block h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -25,22 +25,22 @@ function HeroButtons() {
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={1.5}
               d="M13 7l5 5m0 0l-5 5m5-5H6"
             />
           </svg>
-        </Button>
+        </button>
       </Link>
     );
   }
 
   return (
-    <>
+    <div className="flex items-center gap-4">
       <Link href="/sign-up">
-        <Button size="lg">
+        <button className="gradient-primary rounded px-8 py-4 text-base font-medium text-on-primary transition-all duration-300 hover:opacity-90 active:scale-[0.98]">
           Comenzar ahora
           <svg
-            className="h-4 w-4"
+            className="ml-2 inline-block h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -48,18 +48,18 @@ function HeroButtons() {
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={1.5}
               d="M13 7l5 5m0 0l-5 5m5-5H6"
             />
           </svg>
-        </Button>
+        </button>
       </Link>
       <Link href="/sign-in">
         <Button variant="secondary" size="lg">
           Iniciar sesión
         </Button>
       </Link>
-    </>
+    </div>
   );
 }
 
@@ -67,54 +67,53 @@ export default function HomePage() {
   return (
     <>
       <Header />
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden">
-          {/* Background gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-50 via-background to-background dark:from-brand-950/30 dark:via-background dark:to-background" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-72 h-72 bg-brand-600/10 rounded-full blur-3xl" />
+      <main className="flex-1 pb-24">
+        {/* ─── Hero Section ───────────────────────────── */}
+        <section className="relative bg-surface">
+          <div className="mx-auto max-w-7xl px-6 py-28 sm:py-36 lg:px-8">
+            <div className="max-w-3xl animate-fade-in">
+              {/* Museum label */}
+              <p className="text-label-md text-secondary mb-6">
+                Marketplace Botánico
+              </p>
 
-          <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center animate-fade-in">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-950/50 px-4 py-1.5 text-sm text-brand-700 dark:text-brand-300">
-                <span>🌱</span>
-                <span>Marketplace Botánico</span>
-              </div>
-
-              <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
+              {/* Display headline — Newsreader editorial */}
+              <h1 className="text-display-lg text-on-surface">
                 Pagos seguros para{" "}
-                <span className="text-brand-600 dark:text-brand-400">
-                  Bonzai
-                </span>
+                <em className="text-primary not-italic">Bonzai</em>
               </h1>
 
-              <p className="mt-6 text-lg leading-8 text-muted-foreground">
+              {/* Body text — Manrope */}
+              <p className="mt-8 max-w-xl text-body-lg text-on-surface-muted">
                 Procesamos cobros, gestionamos billeteras y protegemos cada
                 transacción del marketplace. Tu dinero, siempre seguro.
               </p>
 
-              <div className="mt-10 flex items-center justify-center gap-4">
+              {/* CTA with Signature Gradient */}
+              <div className="mt-12">
                 <HeroButtons />
               </div>
             </div>
           </div>
         </section>
 
-        {/* Features */}
-        <section className="border-t border-border bg-card">
-          <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center mb-16">
-              <h2 className="text-3xl font-bold tracking-tight text-foreground">
+        {/* ─── Features — Tonal Shift Section ─────────── */}
+        <section className="bg-surface-low">
+          <div className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
+            <div className="max-w-xl mb-20">
+              <p className="text-label-md text-secondary mb-4">
+                Plataforma completa
+              </p>
+              <h2 className="text-display-sm text-on-surface">
                 Todo lo que necesitás
               </h2>
-              <p className="mt-4 text-muted-foreground">
+              <p className="mt-4 text-body-md text-on-surface-muted">
                 Una plataforma completa para gestionar el flujo financiero del
                 marketplace.
               </p>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-3">
               {[
                 {
                   icon: "💳",
@@ -134,13 +133,13 @@ export default function HomePage() {
               ].map((feature) => (
                 <div
                   key={feature.title}
-                  className="group rounded-xl border border-border bg-background p-6 transition-all duration-200 hover:shadow-lg hover:border-brand-500/30"
+                  className="group rounded-xl bg-surface-lowest p-8 transition-all duration-300 hover:bg-surface"
                 >
-                  <div className="mb-4 text-3xl">{feature.icon}</div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                  <div className="mb-5 text-3xl">{feature.icon}</div>
+                  <h3 className="text-headline-md text-on-surface mb-3">
                     {feature.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-body-md text-on-surface-muted leading-relaxed">
                     {feature.desc}
                   </p>
                 </div>
@@ -149,21 +148,21 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Stats */}
-        <section className="border-t border-border">
-          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        {/* ─── Stats — Back to Surface ────────────────── */}
+        <section className="bg-surface">
+          <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8">
+            <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 { value: "ARS", label: "Moneda soportada" },
                 { value: "24/7", label: "Procesamiento" },
                 { value: "5%", label: "Comisión" },
                 { value: "7 días", label: "Período de protección" },
               ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="text-3xl font-bold text-brand-600 dark:text-brand-400">
+                <div key={stat.label} className="text-left">
+                  <div className="text-display-sm text-primary">
                     {stat.value}
                   </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
+                  <div className="mt-2 text-label-md text-on-surface-muted">
                     {stat.label}
                   </div>
                 </div>

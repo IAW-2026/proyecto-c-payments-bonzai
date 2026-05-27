@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -31,56 +31,63 @@ function formatDate(dateStr: string): string {
 
 export default function WalletPage() {
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-10 animate-fade-in">
+      {/* Editorial Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Billetera</h1>
-        <p className="mt-1 text-muted-foreground">
+        <p className="text-label-md text-secondary mb-2">Finanzas</p>
+        <h1 className="text-display-sm text-on-surface">Billetera</h1>
+        <p className="mt-2 text-body-md text-on-surface-muted">
           Tu saldo y movimientos financieros
         </p>
       </div>
 
       {/* Balance Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
+        {/* Total — with gradient accent */}
         <Card className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-500/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
           <CardHeader className="relative pb-2">
-            <CardDescription>Saldo total</CardDescription>
+            <CardDescription>
+              <span className="text-label-md">Saldo total</span>
+            </CardDescription>
           </CardHeader>
           <CardContent className="relative">
-            <p className="text-3xl font-bold text-foreground">
+            <p className="text-headline-lg text-on-surface">
               {formatCurrency(mockWallet.total)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">{mockWallet.currency}</p>
+            <p className="text-label-sm text-on-surface-muted mt-1">{mockWallet.currency}</p>
           </CardContent>
         </Card>
 
+        {/* Available */}
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
-              <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
-              Disponible
+              <span className="inline-block h-2 w-2 rounded-full bg-success" />
+              <span className="text-label-md">Disponible</span>
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+            <p className="text-headline-lg text-success">
               {formatCurrency(mockWallet.availableBalance)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Listo para retirar</p>
+            <p className="text-label-sm text-on-surface-muted mt-1">Listo para retirar</p>
           </CardContent>
         </Card>
 
+        {/* Held */}
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
-              <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
-              Retenido
+              <span className="inline-block h-2 w-2 rounded-full bg-info" />
+              <span className="text-label-md">Retenido</span>
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+            <p className="text-headline-lg text-info">
               {formatCurrency(mockWallet.heldBalance)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">En período de protección</p>
+            <p className="text-label-sm text-on-surface-muted mt-1">En período de protección</p>
           </CardContent>
         </Card>
       </div>
@@ -88,39 +95,41 @@ export default function WalletPage() {
       {/* Movements */}
       <Card>
         <CardHeader>
-          <CardTitle>Últimos movimientos</CardTitle>
+          <h2 className="text-headline-md text-on-surface">Últimos movimientos</h2>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {mockMovements.map((mov) => (
+          <div className="space-y-1">
+            {mockMovements.map((mov, i) => (
               <div
                 key={mov.id}
-                className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0"
+                className={`flex items-center justify-between rounded-lg px-4 py-4 transition-colors duration-200 hover:bg-surface-low ${
+                  i % 2 === 0 ? "bg-transparent" : "bg-surface-low/40"
+                }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                    className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium ${
                       mov.type === "CREDIT"
-                        ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                        : "bg-red-500/10 text-red-600 dark:text-red-400"
+                        ? "bg-success-container text-success"
+                        : "bg-error-container text-error"
                     }`}
                   >
                     {mov.type === "CREDIT" ? "↓" : "↑"}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-body-sm font-medium text-on-surface">
                       {mov.description}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-label-sm text-on-surface-muted">
                       {formatDate(mov.createdAt)}
                     </p>
                   </div>
                 </div>
                 <p
-                  className={`text-sm font-semibold ${
+                  className={`text-body-sm font-semibold ${
                     mov.type === "CREDIT"
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
+                      ? "text-success"
+                      : "text-error"
                   }`}
                 >
                   {mov.type === "CREDIT" ? "+" : "-"}

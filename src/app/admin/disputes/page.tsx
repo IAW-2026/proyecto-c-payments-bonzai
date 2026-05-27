@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
 
@@ -30,10 +30,12 @@ const reasonLabels: Record<string, string> = {
 
 export default function AdminDisputesPage() {
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-8 animate-fade-in">
+      {/* Editorial Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Disputas</h1>
-        <p className="mt-1 text-muted-foreground">
+        <p className="text-label-md text-secondary mb-2">Resolución</p>
+        <h1 className="text-display-sm text-on-surface">Disputas</h1>
+        <p className="mt-2 text-body-md text-on-surface-muted">
           Gestión de reclamos y resolución de conflictos
         </p>
       </div>
@@ -41,42 +43,42 @@ export default function AdminDisputesPage() {
       <div className="space-y-4">
         {mockDisputes.map((dispute) => (
           <Card key={dispute.id} hover>
-            <CardContent className="pt-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
+            <CardContent>
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-semibold text-foreground">
+                    <h3 className="text-headline-md text-on-surface">
                       {dispute.orderId}
                     </h3>
                     <StatusBadge status={dispute.status} size="sm" />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium">Motivo:</span>{" "}
+                  <div className="space-y-1.5">
+                    <p className="text-body-sm text-on-surface-variant">
+                      <span className="font-medium text-on-surface">Motivo:</span>{" "}
                       {reasonLabels[dispute.reason] || dispute.reason}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium">Descripción:</span>{" "}
+                    <p className="text-body-sm text-on-surface-variant">
+                      <span className="font-medium text-on-surface">Descripción:</span>{" "}
                       {dispute.description}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Transacción: {dispute.transactionId} • Abierta el{" "}
+                    <p className="text-label-sm text-on-surface-muted">
+                      Transacción: {dispute.transactionId} · Abierta el{" "}
                       {formatDate(dispute.createdAt)}
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <p className="text-xl font-bold text-foreground">
+                <div className="flex flex-col items-end gap-4">
+                  <p className="text-headline-lg text-on-surface">
                     {formatCurrency(dispute.amount)}
                   </p>
                   <div className="flex gap-2">
-                    <button className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 transition-colors">
+                    <button className="rounded bg-success px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-success/80">
                       Favor vendedor
                     </button>
-                    <button className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition-colors">
+                    <button className="rounded bg-info px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-info/80">
                       Reembolso parcial
                     </button>
-                    <button className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors">
+                    <button className="rounded bg-error px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-error/80">
                       Favor comprador
                     </button>
                   </div>

@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import Link from "next/link";
 
@@ -64,11 +64,12 @@ function formatDate(dateStr: string): string {
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
+    <div className="space-y-10 animate-fade-in">
+      {/* Editorial Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="mt-1 text-muted-foreground">
+        <p className="text-label-md text-secondary mb-2">Panel de usuario</p>
+        <h1 className="text-display-sm text-on-surface">Dashboard</h1>
+        <p className="mt-2 text-body-md text-on-surface-muted">
           Resumen de tu actividad financiera en Bonzai
         </p>
       </div>
@@ -104,15 +105,15 @@ export default function DashboardPage() {
           <Card key={stat.title} hover>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-label-md text-on-surface-muted">
                   {stat.title}
                 </p>
                 <span className="text-xl">{stat.icon}</span>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="text-headline-lg text-on-surface">{stat.value}</p>
+              <p className="mt-1 text-body-sm text-on-surface-muted">
                 {stat.description}
               </p>
             </CardContent>
@@ -124,10 +125,10 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Transacciones recientes</CardTitle>
+            <h2 className="text-headline-md text-on-surface">Transacciones recientes</h2>
             <Link
               href="/dashboard/transactions"
-              className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium transition-colors"
+              className="text-body-sm text-secondary font-medium transition-colors duration-300 hover:text-primary"
             >
               Ver todas →
             </Link>
@@ -137,43 +138,45 @@ export default function DashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border">
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <tr>
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     ID
                   </th>
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     Orden
                   </th>
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     Monto
                   </th>
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     Estado
                   </th>
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     Fecha
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {mockRecentTransactions.map((txn) => (
+              <tbody>
+                {mockRecentTransactions.map((txn, i) => (
                   <tr
                     key={txn.id}
-                    className="hover:bg-muted/50 transition-colors"
+                    className={`transition-colors duration-200 hover:bg-surface-low ${
+                      i % 2 === 0 ? "bg-transparent" : "bg-surface-low/50"
+                    }`}
                   >
-                    <td className="py-3 text-sm font-mono text-muted-foreground">
+                    <td className="py-4 text-body-sm font-mono text-on-surface-muted">
                       {txn.id}
                     </td>
-                    <td className="py-3 text-sm text-foreground">
+                    <td className="py-4 text-body-sm text-on-surface">
                       {txn.orderId}
                     </td>
-                    <td className="py-3 text-sm font-medium text-foreground">
+                    <td className="py-4 text-body-sm font-medium text-on-surface">
                       {formatCurrency(txn.amount)}
                     </td>
-                    <td className="py-3">
+                    <td className="py-4">
                       <StatusBadge status={txn.status} size="sm" />
                     </td>
-                    <td className="py-3 text-sm text-muted-foreground">
+                    <td className="py-4 text-body-sm text-on-surface-muted">
                       {formatDate(txn.createdAt)}
                     </td>
                   </tr>

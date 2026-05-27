@@ -24,22 +24,20 @@ export default function AdminLayout({
     <>
       <Header />
       <div className="flex flex-1">
-        {/* Sidebar */}
-        <aside className="hidden lg:flex w-64 flex-col border-r border-border bg-card">
-          <div className="p-6 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">
-              Panel de Administración
+        {/* Sidebar — tonal separation, no borders */}
+        <aside className="hidden lg:flex w-64 flex-col bg-surface-mid">
+          <div className="px-6 py-8">
+            <p className="text-label-md text-secondary">Administración</p>
+            <h2 className="mt-1 text-headline-md text-on-surface">
+              Payments
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Payments Admin
-            </p>
           </div>
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 px-4 space-y-0.5">
             {adminNavItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="flex items-center gap-3 rounded-lg px-4 py-3 text-body-sm text-on-surface-variant transition-all duration-300 hover:text-on-surface hover:bg-surface-low"
               >
                 <span>{item.icon}</span>
                 {item.label}
@@ -48,14 +46,14 @@ export default function AdminLayout({
           </nav>
         </aside>
 
-        {/* Mobile nav */}
-        <div className="lg:hidden border-b border-border bg-card px-4 py-2 w-full">
+        {/* Mobile nav — tonal strip */}
+        <div className="lg:hidden bg-surface-mid px-4 py-2 w-full">
           <nav className="flex gap-1 overflow-x-auto">
             {adminNavItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-label-sm text-on-surface-variant transition-all duration-300 hover:text-on-surface hover:bg-surface-low"
               >
                 <span>{item.icon}</span>
                 {item.label}
@@ -64,9 +62,9 @@ export default function AdminLayout({
           </nav>
         </div>
 
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Content — surface background for contrast with sidebar */}
+        <main className="flex-1 overflow-y-auto bg-surface-low">
+          <div className="mx-auto max-w-6xl px-6 py-10 pb-28 lg:px-8">
             {children}
           </div>
         </main>

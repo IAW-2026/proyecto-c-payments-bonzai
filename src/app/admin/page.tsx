@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
 
@@ -27,10 +27,12 @@ function formatCurrency(amount: number): string {
 
 export default function AdminDashboardPage() {
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-10 animate-fade-in">
+      {/* Editorial Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-        <p className="mt-1 text-muted-foreground">
+        <p className="text-label-md text-secondary mb-2">Vista general</p>
+        <h1 className="text-display-sm text-on-surface">Admin Dashboard</h1>
+        <p className="mt-2 text-body-md text-on-surface-muted">
           Vista general del sistema de pagos Bonzai
         </p>
       </div>
@@ -48,12 +50,12 @@ export default function AdminDashboardPage() {
           <Card key={stat.title} hover>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                <p className="text-label-md text-on-surface-muted">{stat.title}</p>
                 <span className="text-xl">{stat.icon}</span>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+              <p className="text-headline-lg text-on-surface">{stat.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -62,27 +64,30 @@ export default function AdminDashboardPage() {
       {/* Active Disputes */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            ⚖️ Disputas activas
-          </CardTitle>
+          <div className="flex items-center gap-3">
+            <span className="text-xl">⚖️</span>
+            <h2 className="text-headline-md text-on-surface">Disputas activas</h2>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentDisputes.map((dispute) => (
+          <div className="space-y-1">
+            {recentDisputes.map((dispute, i) => (
               <div
                 key={dispute.id}
-                className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
+                className={`flex items-center justify-between rounded-lg px-4 py-4 transition-colors duration-200 hover:bg-surface-low ${
+                  i % 2 === 0 ? "bg-transparent" : "bg-surface-low/40"
+                }`}
               >
                 <div>
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-body-sm font-medium text-on-surface">
                     {dispute.orderId}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {dispute.reason.replace(/_/g, " ")} • {dispute.id}
+                  <p className="text-label-sm text-on-surface-muted">
+                    {dispute.reason.replace(/_/g, " ")} · {dispute.id}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">
+                <div className="text-right flex items-center gap-4">
+                  <p className="text-body-sm font-semibold text-on-surface">
                     {formatCurrency(dispute.amount)}
                   </p>
                   <StatusBadge status="DISPUTED" size="sm" />
