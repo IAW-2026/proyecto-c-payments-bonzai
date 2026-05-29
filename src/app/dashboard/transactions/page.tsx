@@ -1,34 +1,40 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Transacciones",
 };
 
-// Mock data — se reemplaza por queries a la DB
-const mockTransactions = [
-  { id: "txn_001", orderId: "ord_101", buyerId: "user_a", sellerId: "user_b", amount: 15000, commissionAmount: 750, netAmount: 14250, status: "COMPLETED", currency: "ARS", createdAt: "2026-04-28T14:30:00Z" },
-  { id: "txn_002", orderId: "ord_102", buyerId: "user_c", sellerId: "user_b", amount: 8500, commissionAmount: 425, netAmount: 8075, status: "HELD", currency: "ARS", createdAt: "2026-04-28T12:15:00Z" },
-  { id: "txn_003", orderId: "ord_103", buyerId: "user_a", sellerId: "user_d", amount: 22000, commissionAmount: 1100, netAmount: 20900, status: "DELIVERED", currency: "ARS", createdAt: "2026-04-27T18:45:00Z" },
-  { id: "txn_004", orderId: "ord_104", buyerId: "user_e", sellerId: "user_b", amount: 5200, commissionAmount: 260, netAmount: 4940, status: "DISPUTED", currency: "ARS", createdAt: "2026-04-27T10:20:00Z" },
-  { id: "txn_005", orderId: "ord_105", buyerId: "user_c", sellerId: "user_d", amount: 31000, commissionAmount: 1550, netAmount: 29450, status: "PENDING", currency: "ARS", createdAt: "2026-04-26T16:00:00Z" },
-  { id: "txn_006", orderId: "ord_106", buyerId: "user_a", sellerId: "user_d", amount: 12800, commissionAmount: 640, netAmount: 12160, status: "REFUNDED", currency: "ARS", createdAt: "2026-04-25T09:10:00Z" },
-];
-
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: Date | string): string {
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr));
 }
 
-export default function TransactionsPage({
+export default async function TransactionsPage({
   searchParams,
 }: {
   searchParams: Promise<{ page?: string; status?: string; q?: string }>;
 }) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    redirect("/sign-in");
+  }
+
+  const transactions = await db.transaction.findMany({
+    where: {
+      OR: [{ buyerId: userId }, { sellerId: userId }],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
   // In the future, use searchParams for filtering and pagination
   return (
     <div className="space-y-8 animate-fade-in">
@@ -82,7 +88,7 @@ export default function TransactionsPage({
                 </tr>
               </thead>
               <tbody>
-                {mockTransactions.map((txn, i) => (
+                {transactions.map((txn, i) => (
                   <tr
                     key={txn.id}
                     className={`transition-colors duration-200 hover:bg-surface-low ${
@@ -91,13 +97,20 @@ export default function TransactionsPage({
                   >
                     <td className="py-4 text-body-sm font-mono text-on-surface-muted">{txn.id}</td>
                     <td className="py-4 text-body-sm text-on-surface">{txn.orderId}</td>
-                    <td className="py-4 text-body-sm font-medium text-on-surface">{formatCurrency(txn.amount)}</td>
-                    <td className="py-4 text-body-sm text-on-surface-muted">{formatCurrency(txn.commissionAmount)}</td>
-                    <td className="py-4 text-body-sm font-medium text-primary">{formatCurrency(txn.netAmount)}</td>
+                    <td className="py-4 text-body-sm font-medium text-on-surface">{formatCurrency(Number(txn.amount))}</td>
+                    <td className="py-4 text-body-sm text-on-surface-muted">{formatCurrency(Number(txn.commissionAmount))}</td>
+                    <td className="py-4 text-body-sm font-medium text-primary">{formatCurrency(Number(txn.netAmount))}</td>
                     <td className="py-4"><StatusBadge status={txn.status} size="sm" /></td>
                     <td className="py-4 text-body-sm text-on-surface-muted">{formatDate(txn.createdAt)}</td>
                   </tr>
                 ))}
+                {transactions.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-on-surface-muted">
+                      No tienes transacciones registradas.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -105,7 +118,7 @@ export default function TransactionsPage({
           {/* Pagination */}
           <div className="mt-6 flex items-center justify-between pt-4">
             <p className="text-body-sm text-on-surface-muted">
-              Mostrando 1-{mockTransactions.length} de {mockTransactions.length} transacciones
+              Mostrando {transactions.length > 0 ? 1 : 0}-{transactions.length} de {transactions.length} transacciones
             </p>
             <div className="flex gap-2">
               <button className="rounded bg-surface-mid px-4 py-2 text-body-sm text-on-surface-muted transition-colors duration-200 hover:text-on-surface hover:bg-surface-high disabled:opacity-50" disabled>

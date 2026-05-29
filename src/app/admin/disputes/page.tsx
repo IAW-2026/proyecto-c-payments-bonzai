@@ -1,22 +1,17 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
+import { db } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Disputas — Admin",
 };
 
-const mockDisputes = [
-  { id: "d_001", transactionId: "txn_004", orderId: "ord_104", buyerId: "user_e", sellerId: "user_b", amount: 5200, reason: "ITEM_DAMAGED", description: "Uno de los tres productos llegó roto.", status: "DISPUTED", createdAt: "2026-04-27T10:20:00Z" },
-  { id: "d_002", transactionId: "txn_012", orderId: "ord_112", buyerId: "user_a", sellerId: "user_d", amount: 18700, reason: "ITEM_NOT_RECEIVED", description: "Nunca recibí el paquete.", status: "DISPUTED", createdAt: "2026-04-26T15:30:00Z" },
-  { id: "d_003", transactionId: "txn_019", orderId: "ord_119", buyerId: "user_c", sellerId: "user_b", amount: 9300, reason: "WRONG_ITEM", description: "Me mandaron una suculenta en vez de un bonsai.", status: "DISPUTED", createdAt: "2026-04-25T08:45:00Z" },
-];
-
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: Date | string): string {
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr));
 }
 
@@ -28,7 +23,12 @@ const reasonLabels: Record<string, string> = {
   OTHER: "Otro",
 };
 
-export default function AdminDisputesPage() {
+export default async function AdminDisputesPage() {
+  const disputes = await db.dispute.findMany({
+    include: { transaction: true },
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Editorial Header */}
@@ -41,16 +41,21 @@ export default function AdminDisputesPage() {
       </div>
 
       <div className="space-y-4">
-        {mockDisputes.map((dispute) => (
+        {disputes.map((dispute) => (
           <Card key={dispute.id} hover>
             <CardContent>
               <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <h3 className="text-headline-md text-on-surface">
-                      {dispute.orderId}
+                      {dispute.transaction.orderId}
                     </h3>
-                    <StatusBadge status={dispute.status} size="sm" />
+                    <StatusBadge status={dispute.transaction.status} size="sm" />
+                    {dispute.resolution && (
+                      <span className="inline-flex items-center rounded-full bg-surface-high px-2 py-0.5 text-xs font-medium text-on-surface-variant">
+                        Resuelta: {dispute.resolution}
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <p className="text-body-sm text-on-surface-variant">
@@ -59,7 +64,7 @@ export default function AdminDisputesPage() {
                     </p>
                     <p className="text-body-sm text-on-surface-variant">
                       <span className="font-medium text-on-surface">Descripción:</span>{" "}
-                      {dispute.description}
+                      {dispute.description || "Sin descripción proporcionada."}
                     </p>
                     <p className="text-label-sm text-on-surface-muted">
                       Transacción: {dispute.transactionId} · Abierta el{" "}
@@ -69,24 +74,31 @@ export default function AdminDisputesPage() {
                 </div>
                 <div className="flex flex-col items-end gap-4">
                   <p className="text-headline-lg text-on-surface">
-                    {formatCurrency(dispute.amount)}
+                    {formatCurrency(Number(dispute.transaction.amount))}
                   </p>
-                  <div className="flex gap-2">
-                    <button className="rounded bg-success px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-success/80">
-                      Favor vendedor
-                    </button>
-                    <button className="rounded bg-info px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-info/80">
-                      Reembolso parcial
-                    </button>
-                    <button className="rounded bg-error px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-error/80">
-                      Favor comprador
-                    </button>
-                  </div>
+                  {!dispute.resolution && (
+                    <div className="flex gap-2 flex-wrap justify-end">
+                      <button className="rounded bg-success px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-success/80">
+                        Favor vendedor
+                      </button>
+                      <button className="rounded bg-info px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-info/80">
+                        Reembolso parcial
+                      </button>
+                      <button className="rounded bg-error px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-error/80">
+                        Favor comprador
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
         ))}
+        {disputes.length === 0 && (
+          <div className="py-12 text-center text-on-surface-muted border-2 border-dashed border-surface-high rounded-xl">
+            No hay disputas registradas en el sistema.
+          </div>
+        )}
       </div>
     </div>
   );

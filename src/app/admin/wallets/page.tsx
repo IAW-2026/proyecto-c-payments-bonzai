@@ -1,26 +1,25 @@
 import { Card, CardContent } from "@/components/ui/card";
 import type { Metadata } from "next";
+import { db } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Billeteras — Admin",
 };
 
-const mockWallets = [
-  { id: "w_001", userId: "user_b", availableBalance: 120000, heldBalance: 45000, updatedAt: "2026-04-28T18:00:00Z" },
-  { id: "w_002", userId: "user_d", availableBalance: 85000, heldBalance: 22000, updatedAt: "2026-04-28T16:30:00Z" },
-  { id: "w_003", userId: "user_f", availableBalance: 3200, heldBalance: 8500, updatedAt: "2026-04-27T14:15:00Z" },
-  { id: "w_004", userId: "user_g", availableBalance: 0, heldBalance: 31000, updatedAt: "2026-04-26T11:00:00Z" },
-];
-
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: Date | string): string {
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr));
 }
 
-export default function AdminWalletsPage() {
+export default async function AdminWalletsPage() {
+  const wallets = await db.wallet.findMany({
+    orderBy: { updatedAt: "desc" },
+    take: 50, // Límite temporal hasta implementar paginación real
+  });
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Editorial Header */}
@@ -46,7 +45,7 @@ export default function AdminWalletsPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockWallets.map((wallet, i) => (
+                {wallets.map((wallet, i) => (
                   <tr
                     key={wallet.id}
                     className={`transition-colors duration-200 hover:bg-surface-low ${
@@ -55,19 +54,26 @@ export default function AdminWalletsPage() {
                   >
                     <td className="py-4 text-body-sm font-medium text-on-surface">{wallet.userId}</td>
                     <td className="py-4 text-body-sm font-medium text-success">
-                      {formatCurrency(wallet.availableBalance)}
+                      {formatCurrency(Number(wallet.availableBalance))}
                     </td>
                     <td className="py-4 text-body-sm text-info">
-                      {formatCurrency(wallet.heldBalance)}
+                      {formatCurrency(Number(wallet.heldBalance))}
                     </td>
                     <td className="py-4 text-body-sm font-bold text-on-surface">
-                      {formatCurrency(wallet.availableBalance + wallet.heldBalance)}
+                      {formatCurrency(Number(wallet.availableBalance) + Number(wallet.heldBalance))}
                     </td>
                     <td className="py-4 text-body-sm text-on-surface-muted">
                       {formatDate(wallet.updatedAt)}
                     </td>
                   </tr>
                 ))}
+                {wallets.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-on-surface-muted">
+                      No hay billeteras registradas en el sistema.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

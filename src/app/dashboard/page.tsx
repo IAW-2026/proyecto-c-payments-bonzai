@@ -1,52 +1,9 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import Link from "next/link";
-
-// Datos mock para el dashboard (se reemplazan por queries reales cuando se configure la DB)
-const mockStats = {
-  totalTransactions: 24,
-  totalVolume: 385000,
-  heldBalance: 45000,
-  availableBalance: 120000,
-};
-
-const mockRecentTransactions = [
-  {
-    id: "txn_001",
-    orderId: "ord_101",
-    amount: 15000,
-    status: "COMPLETED",
-    createdAt: "2026-04-28T14:30:00Z",
-  },
-  {
-    id: "txn_002",
-    orderId: "ord_102",
-    amount: 8500,
-    status: "HELD",
-    createdAt: "2026-04-28T12:15:00Z",
-  },
-  {
-    id: "txn_003",
-    orderId: "ord_103",
-    amount: 22000,
-    status: "DELIVERED",
-    createdAt: "2026-04-27T18:45:00Z",
-  },
-  {
-    id: "txn_004",
-    orderId: "ord_104",
-    amount: 5200,
-    status: "DISPUTED",
-    createdAt: "2026-04-27T10:20:00Z",
-  },
-  {
-    id: "txn_005",
-    orderId: "ord_105",
-    amount: 31000,
-    status: "PENDING",
-    createdAt: "2026-04-26T16:00:00Z",
-  },
-];
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { redirect } from "next/navigation";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -55,14 +12,60 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: Date | string): string {
   return new Intl.DateTimeFormat("es-AR", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(dateStr));
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    redirect("/sign-in");
+  }
+
+  // Obtener la billetera del usuario
+  let wallet = await db.wallet.findUnique({
+    where: { userId },
+  });
+
+  if (!wallet) {
+    wallet = await db.wallet.create({
+      data: {
+        userId,
+        availableBalance: 0,
+        heldBalance: 0,
+      },
+    });
+  }
+
+  // Obtener transacciones recientes donde el usuario es comprador o vendedor
+  const recentTransactions = await db.transaction.findMany({
+    where: {
+      OR: [{ buyerId: userId }, { sellerId: userId }],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+
+  // Estadísticas globales del usuario
+  const stats = await db.transaction.aggregate({
+    where: {
+      OR: [{ buyerId: userId }, { sellerId: userId }],
+    },
+    _count: {
+      id: true,
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  const totalTransactions = stats._count.id;
+  const totalVolume = stats._sum.amount ? Number(stats._sum.amount) : 0;
+
   return (
     <div className="space-y-10 animate-fade-in">
       {/* Editorial Header */}
@@ -79,25 +82,25 @@ export default function DashboardPage() {
         {[
           {
             title: "Transacciones",
-            value: mockStats.totalTransactions.toString(),
+            value: totalTransactions.toString(),
             icon: "📊",
             description: "Total procesadas",
           },
           {
             title: "Volumen total",
-            value: formatCurrency(mockStats.totalVolume),
+            value: formatCurrency(totalVolume),
             icon: "💰",
             description: "Monto total operado",
           },
           {
             title: "Saldo retenido",
-            value: formatCurrency(mockStats.heldBalance),
+            value: formatCurrency(Number(wallet.heldBalance)),
             icon: "🔒",
             description: "En período de protección",
           },
           {
             title: "Saldo disponible",
-            value: formatCurrency(mockStats.availableBalance),
+            value: formatCurrency(Number(wallet.availableBalance)),
             icon: "✅",
             description: "Listo para retirar",
           },
@@ -157,7 +160,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockRecentTransactions.map((txn, i) => (
+                {recentTransactions.map((txn, i) => (
                   <tr
                     key={txn.id}
                     className={`transition-colors duration-200 hover:bg-surface-low ${
@@ -171,7 +174,7 @@ export default function DashboardPage() {
                       {txn.orderId}
                     </td>
                     <td className="py-4 text-body-sm font-medium text-on-surface">
-                      {formatCurrency(txn.amount)}
+                      {formatCurrency(Number(txn.amount))}
                     </td>
                     <td className="py-4">
                       <StatusBadge status={txn.status} size="sm" />
@@ -181,6 +184,13 @@ export default function DashboardPage() {
                     </td>
                   </tr>
                 ))}
+                {recentTransactions.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-on-surface-muted">
+                      No tienes transacciones recientes.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

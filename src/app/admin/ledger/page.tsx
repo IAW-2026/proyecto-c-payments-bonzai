@@ -1,30 +1,25 @@
 import { Card, CardContent } from "@/components/ui/card";
 import type { Metadata } from "next";
+import { db } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Libro Mayor — Admin",
 };
 
-const mockLedgerEntries = [
-  { id: "le_001", userId: "user_b", transactionId: "txn_001", type: "CREDIT" as const, amount: 14250, description: "Pago liberado — ord_101", createdAt: "2026-04-28T14:30:00Z" },
-  { id: "le_002", userId: "platform", transactionId: "txn_001", type: "CREDIT" as const, amount: 750, description: "Comisión — ord_101", createdAt: "2026-04-28T14:30:00Z" },
-  { id: "le_003", userId: "user_a", transactionId: "txn_001", type: "DEBIT" as const, amount: 15000, description: "Pago — ord_101", createdAt: "2026-04-28T14:30:00Z" },
-  { id: "le_004", userId: "user_b", transactionId: "txn_002", type: "CREDIT" as const, amount: 8075, description: "Pago retenido — ord_102", createdAt: "2026-04-28T12:15:00Z" },
-  { id: "le_005", userId: "platform", transactionId: "txn_002", type: "CREDIT" as const, amount: 425, description: "Comisión — ord_102", createdAt: "2026-04-28T12:15:00Z" },
-  { id: "le_006", userId: "user_c", transactionId: "txn_002", type: "DEBIT" as const, amount: 8500, description: "Pago — ord_102", createdAt: "2026-04-28T12:15:00Z" },
-  { id: "le_007", userId: "user_a", transactionId: "txn_006", type: "CREDIT" as const, amount: 12800, description: "Reembolso — ord_106", createdAt: "2026-04-25T09:10:00Z" },
-  { id: "le_008", userId: "user_d", transactionId: "txn_006", type: "DEBIT" as const, amount: 12160, description: "Cargo por reembolso — ord_106", createdAt: "2026-04-25T09:10:00Z" },
-];
-
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: Date | string): string {
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr));
 }
 
-export default function AdminLedgerPage() {
+export default async function AdminLedgerPage() {
+  const ledgerEntries = await db.ledgerEntry.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 100, // Límite temporal hasta implementar paginación
+  });
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Editorial Header */}
@@ -52,7 +47,7 @@ export default function AdminLedgerPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockLedgerEntries.map((entry, i) => (
+                {ledgerEntries.map((entry, i) => (
                   <tr
                     key={entry.id}
                     className={`transition-colors duration-200 hover:bg-surface-low ${
@@ -76,12 +71,19 @@ export default function AdminLedgerPage() {
                         ? "text-success"
                         : "text-error"
                     }`}>
-                      {entry.type === "CREDIT" ? "+" : "-"}{formatCurrency(entry.amount)}
+                      {entry.type === "CREDIT" ? "+" : "-"}{formatCurrency(Number(entry.amount))}
                     </td>
-                    <td className="py-4 text-body-sm text-on-surface-muted">{entry.description}</td>
+                    <td className="py-4 text-body-sm text-on-surface-muted">{entry.description || "-"}</td>
                     <td className="py-4 text-body-sm text-on-surface-muted whitespace-nowrap">{formatDate(entry.createdAt)}</td>
                   </tr>
                 ))}
+                {ledgerEntries.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-on-surface-muted">
+                      No hay registros en el libro mayor.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

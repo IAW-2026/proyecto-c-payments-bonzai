@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Panel Admin",
@@ -15,11 +17,26 @@ const adminNavItems = [
   { href: "/admin/wallets", label: "Billeteras", icon: "👛" },
 ];
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { userId, sessionClaims } = await auth();
+
+  if (!userId) {
+    redirect("/sign-in");
+  }
+
+  // Validar rol de administrador
+  // Asumiendo que los roles vienen en sessionClaims.roles o sessionClaims.metadata.roles
+  const claims = sessionClaims as any;
+  const roles: string[] = claims?.roles || claims?.metadata?.roles || [];
+  
+  if (!roles.includes("payments_admin") && !roles.includes("super_admin")) {
+    redirect("/dashboard");
+  }
+
   return (
     <>
       <Header />
