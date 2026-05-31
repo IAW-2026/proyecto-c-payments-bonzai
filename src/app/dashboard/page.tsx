@@ -1,52 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import Link from "next/link";
-
-// Datos mock para el dashboard (se reemplazan por queries reales cuando se configure la DB)
-const mockStats = {
-  totalTransactions: 24,
-  totalVolume: 385000,
-  heldBalance: 45000,
-  availableBalance: 120000,
-};
-
-const mockRecentTransactions = [
-  {
-    id: "txn_001",
-    orderId: "ord_101",
-    amount: 15000,
-    status: "COMPLETED",
-    createdAt: "2026-04-28T14:30:00Z",
-  },
-  {
-    id: "txn_002",
-    orderId: "ord_102",
-    amount: 8500,
-    status: "HELD",
-    createdAt: "2026-04-28T12:15:00Z",
-  },
-  {
-    id: "txn_003",
-    orderId: "ord_103",
-    amount: 22000,
-    status: "DELIVERED",
-    createdAt: "2026-04-27T18:45:00Z",
-  },
-  {
-    id: "txn_004",
-    orderId: "ord_104",
-    amount: 5200,
-    status: "DISPUTED",
-    createdAt: "2026-04-27T10:20:00Z",
-  },
-  {
-    id: "txn_005",
-    orderId: "ord_105",
-    amount: 31000,
-    status: "PENDING",
-    createdAt: "2026-04-26T16:00:00Z",
-  },
-];
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { redirect } from "next/navigation";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -55,20 +12,67 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: Date | string): string {
   return new Intl.DateTimeFormat("es-AR", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(dateStr));
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    redirect("/sign-in");
+  }
+
+  // Obtener la billetera del usuario
+  let wallet = await db.wallet.findUnique({
+    where: { userId },
+  });
+
+  if (!wallet) {
+    wallet = await db.wallet.create({
+      data: {
+        userId,
+        availableBalance: 0,
+        heldBalance: 0,
+      },
+    });
+  }
+
+  // Obtener transacciones recientes donde el usuario es comprador o vendedor
+  const recentTransactions = await db.transaction.findMany({
+    where: {
+      OR: [{ buyerId: userId }, { sellerId: userId }],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+
+  // Estadísticas globales del usuario
+  const stats = await db.transaction.aggregate({
+    where: {
+      OR: [{ buyerId: userId }, { sellerId: userId }],
+    },
+    _count: {
+      id: true,
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  const totalTransactions = stats._count.id;
+  const totalVolume = stats._sum.amount ? Number(stats._sum.amount) : 0;
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
+    <div className="space-y-10 animate-fade-in">
+      {/* Editorial Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="mt-1 text-muted-foreground">
+        <p className="text-label-md text-secondary mb-2">Panel de usuario</p>
+        <h1 className="text-display-sm text-on-surface">Dashboard</h1>
+        <p className="mt-2 text-body-md text-on-surface-muted">
           Resumen de tu actividad financiera en Bonzai
         </p>
       </div>
@@ -78,25 +82,25 @@ export default function DashboardPage() {
         {[
           {
             title: "Transacciones",
-            value: mockStats.totalTransactions.toString(),
+            value: totalTransactions.toString(),
             icon: "📊",
             description: "Total procesadas",
           },
           {
             title: "Volumen total",
-            value: formatCurrency(mockStats.totalVolume),
+            value: formatCurrency(totalVolume),
             icon: "💰",
             description: "Monto total operado",
           },
           {
             title: "Saldo retenido",
-            value: formatCurrency(mockStats.heldBalance),
+            value: formatCurrency(Number(wallet.heldBalance)),
             icon: "🔒",
             description: "En período de protección",
           },
           {
             title: "Saldo disponible",
-            value: formatCurrency(mockStats.availableBalance),
+            value: formatCurrency(Number(wallet.availableBalance)),
             icon: "✅",
             description: "Listo para retirar",
           },
@@ -104,15 +108,15 @@ export default function DashboardPage() {
           <Card key={stat.title} hover>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-label-md text-on-surface-muted">
                   {stat.title}
                 </p>
                 <span className="text-xl">{stat.icon}</span>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="text-headline-lg text-on-surface">{stat.value}</p>
+              <p className="mt-1 text-body-sm text-on-surface-muted">
                 {stat.description}
               </p>
             </CardContent>
@@ -124,10 +128,10 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Transacciones recientes</CardTitle>
+            <h2 className="text-headline-md text-on-surface">Transacciones recientes</h2>
             <Link
               href="/dashboard/transactions"
-              className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium transition-colors"
+              className="text-body-sm text-secondary font-medium transition-colors duration-300 hover:text-primary"
             >
               Ver todas →
             </Link>
@@ -137,47 +141,56 @@ export default function DashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border">
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <tr>
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     ID
                   </th>
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     Orden
                   </th>
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     Monto
                   </th>
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     Estado
                   </th>
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
                     Fecha
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {mockRecentTransactions.map((txn) => (
+              <tbody>
+                {recentTransactions.map((txn, i) => (
                   <tr
                     key={txn.id}
-                    className="hover:bg-muted/50 transition-colors"
+                    className={`transition-colors duration-200 hover:bg-surface-low ${
+                      i % 2 === 0 ? "bg-transparent" : "bg-surface-low/50"
+                    }`}
                   >
-                    <td className="py-3 text-sm font-mono text-muted-foreground">
+                    <td className="py-4 text-body-sm font-mono text-on-surface-muted">
                       {txn.id}
                     </td>
-                    <td className="py-3 text-sm text-foreground">
+                    <td className="py-4 text-body-sm text-on-surface">
                       {txn.orderId}
                     </td>
-                    <td className="py-3 text-sm font-medium text-foreground">
-                      {formatCurrency(txn.amount)}
+                    <td className="py-4 text-body-sm font-medium text-on-surface">
+                      {formatCurrency(Number(txn.amount))}
                     </td>
-                    <td className="py-3">
+                    <td className="py-4">
                       <StatusBadge status={txn.status} size="sm" />
                     </td>
-                    <td className="py-3 text-sm text-muted-foreground">
+                    <td className="py-4 text-body-sm text-on-surface-muted">
                       {formatDate(txn.createdAt)}
                     </td>
                   </tr>
                 ))}
+                {recentTransactions.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-on-surface-muted">
+                      No tienes transacciones recientes.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

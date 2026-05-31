@@ -3,19 +3,22 @@ import { HTMLAttributes } from "react";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   hover?: boolean;
+  elevated?: boolean;
 }
 
 export function Card({
   className,
   hover = false,
+  elevated = false,
   children,
   ...props
 }: CardProps) {
   return (
     <div
       className={clsx(
-        "rounded-xl border border-border bg-card text-card-foreground shadow-sm",
-        hover && "transition-all duration-200 hover:shadow-md hover:border-brand-500/30",
+        "rounded-xl bg-surface-lowest p-6",
+        elevated && "shadow-ambient-sm",
+        hover && "transition-all duration-300 hover:bg-surface-low",
         className
       )}
       {...props}
@@ -32,7 +35,7 @@ export function CardHeader({
 }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={clsx("flex flex-col space-y-1.5 p-6", className)}
+      className={clsx("flex flex-col space-y-1.5 pb-4", className)}
       {...props}
     >
       {children}
@@ -48,7 +51,7 @@ export function CardTitle({
   return (
     <h3
       className={clsx(
-        "text-lg font-semibold leading-none tracking-tight",
+        "text-headline-md text-on-surface",
         className
       )}
       {...props}
@@ -65,7 +68,7 @@ export function CardDescription({
 }: HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p
-      className={clsx("text-sm text-muted-foreground", className)}
+      className={clsx("text-body-sm text-on-surface-muted", className)}
       {...props}
     >
       {children}
@@ -79,7 +82,7 @@ export function CardContent({
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={clsx("p-6 pt-0", className)} {...props}>
+    <div className={clsx(className)} {...props}>
       {children}
     </div>
   );

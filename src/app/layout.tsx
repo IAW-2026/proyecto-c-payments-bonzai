@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Newsreader, Manrope } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
   subsets: ["latin"],
+  display: "swap",
+  style: ["normal", "italic"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -39,9 +42,9 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="es"
-        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+        className={`${newsreader.variable} ${manrope.variable} h-full`}
       >
-        <body className="min-h-full flex flex-col bg-background text-foreground">
+        <body className="min-h-full flex flex-col">
           {children}
         </body>
       </html>

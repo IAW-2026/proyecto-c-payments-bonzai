@@ -1,36 +1,58 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
+import { db } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard",
 };
 
-const adminStats = {
-  totalTransactions: 156,
-  totalVolume: 2340000,
-  activeDisputes: 3,
-  totalCommission: 117000,
-  pendingPayments: 12,
-  completedToday: 8,
-};
-
-const recentDisputes = [
-  { id: "txn_004", orderId: "ord_104", amount: 5200, reason: "ITEM_DAMAGED", createdAt: "2026-04-27T10:20:00Z" },
-  { id: "txn_012", orderId: "ord_112", amount: 18700, reason: "ITEM_NOT_RECEIVED", createdAt: "2026-04-26T15:30:00Z" },
-  { id: "txn_019", orderId: "ord_119", amount: 9300, reason: "WRONG_ITEM", createdAt: "2026-04-25T08:45:00Z" },
-];
-
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 }
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const [
+    totalTxns,
+    volumeAgg,
+    commissionsAgg,
+    activeDisputesCount,
+    pendingCount,
+    todayCompletedCount,
+  ] = await Promise.all([
+    db.transaction.count(),
+    db.transaction.aggregate({ _sum: { amount: true } }),
+    db.transaction.aggregate({ _sum: { commissionAmount: true } }),
+    db.dispute.count({ where: { resolution: null } }),
+    db.transaction.count({ where: { status: "PENDING" } }),
+    db.transaction.count({
+      where: {
+        status: "COMPLETED",
+        updatedAt: { gte: startOfToday },
+      },
+    }),
+  ]);
+
+  const recentDisputes = await db.dispute.findMany({
+    where: { resolution: null },
+    include: { transaction: true },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+
+  const totalVolume = Number(volumeAgg._sum.amount || 0);
+  const totalCommission = Number(commissionsAgg._sum.commissionAmount || 0);
+
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-10 animate-fade-in">
+      {/* Editorial Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-        <p className="mt-1 text-muted-foreground">
+        <p className="text-label-md text-secondary mb-2">Vista general</p>
+        <h1 className="text-display-sm text-on-surface">Admin Dashboard</h1>
+        <p className="mt-2 text-body-md text-on-surface-muted">
           Vista general del sistema de pagos Bonzai
         </p>
       </div>
@@ -38,22 +60,22 @@ export default function AdminDashboardPage() {
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[
-          { title: "Transacciones totales", value: adminStats.totalTransactions.toString(), icon: "📊" },
-          { title: "Volumen operado", value: formatCurrency(adminStats.totalVolume), icon: "💰" },
-          { title: "Disputas activas", value: adminStats.activeDisputes.toString(), icon: "⚖️" },
-          { title: "Comisiones generadas", value: formatCurrency(adminStats.totalCommission), icon: "🏦" },
-          { title: "Pagos pendientes", value: adminStats.pendingPayments.toString(), icon: "⏳" },
-          { title: "Completados hoy", value: adminStats.completedToday.toString(), icon: "✅" },
+          { title: "Transacciones totales", value: totalTxns.toString(), icon: "📊" },
+          { title: "Volumen operado", value: formatCurrency(totalVolume), icon: "💰" },
+          { title: "Disputas activas", value: activeDisputesCount.toString(), icon: "⚖️" },
+          { title: "Comisiones generadas", value: formatCurrency(totalCommission), icon: "🏦" },
+          { title: "Pagos pendientes", value: pendingCount.toString(), icon: "⏳" },
+          { title: "Completados hoy", value: todayCompletedCount.toString(), icon: "✅" },
         ].map((stat) => (
           <Card key={stat.title} hover>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                <p className="text-label-md text-on-surface-muted">{stat.title}</p>
                 <span className="text-xl">{stat.icon}</span>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+              <p className="text-headline-lg text-on-surface">{stat.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -62,33 +84,41 @@ export default function AdminDashboardPage() {
       {/* Active Disputes */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            ⚖️ Disputas activas
-          </CardTitle>
+          <div className="flex items-center gap-3">
+            <span className="text-xl">⚖️</span>
+            <h2 className="text-headline-md text-on-surface">Disputas activas</h2>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentDisputes.map((dispute) => (
+          <div className="space-y-1">
+            {recentDisputes.map((dispute, i) => (
               <div
                 key={dispute.id}
-                className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
+                className={`flex items-center justify-between rounded-lg px-4 py-4 transition-colors duration-200 hover:bg-surface-low ${
+                  i % 2 === 0 ? "bg-transparent" : "bg-surface-low/40"
+                }`}
               >
                 <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {dispute.orderId}
+                  <p className="text-body-sm font-medium text-on-surface">
+                    {dispute.transaction.orderId}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {dispute.reason.replace(/_/g, " ")} • {dispute.id}
+                  <p className="text-label-sm text-on-surface-muted">
+                    {dispute.reason.replace(/_/g, " ")} · {dispute.id}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">
-                    {formatCurrency(dispute.amount)}
+                <div className="text-right flex items-center gap-4">
+                  <p className="text-body-sm font-semibold text-on-surface">
+                    {formatCurrency(Number(dispute.transaction.amount))}
                   </p>
                   <StatusBadge status="DISPUTED" size="sm" />
                 </div>
               </div>
             ))}
+            {recentDisputes.length === 0 && (
+              <div className="py-8 text-center text-on-surface-muted">
+                No hay disputas activas en este momento.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

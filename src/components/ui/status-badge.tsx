@@ -5,57 +5,69 @@ interface StatusBadgeProps {
   size?: "sm" | "md";
 }
 
-const statusConfig: Record<string, { label: string; classes: string }> = {
+const statusConfig: Record<string, { label: string; dotClass: string; bgClass: string; textClass: string }> = {
   PENDING: {
     label: "Pendiente",
-    classes: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    dotClass: "bg-warning animate-pulse-soft",
+    bgClass: "bg-warning-container",
+    textClass: "text-warning",
   },
   HELD: {
     label: "Retenido",
-    classes: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    dotClass: "bg-info",
+    bgClass: "bg-info/8",
+    textClass: "text-info",
   },
   DELIVERED: {
     label: "Entregado",
-    classes: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
+    dotClass: "bg-secondary",
+    bgClass: "bg-secondary-container",
+    textClass: "text-secondary",
   },
   DISPUTED: {
     label: "En disputa",
-    classes: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+    dotClass: "bg-error animate-pulse-soft",
+    bgClass: "bg-error-container",
+    textClass: "text-error",
   },
   COMPLETED: {
     label: "Completado",
-    classes: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
+    dotClass: "bg-success",
+    bgClass: "bg-success-container",
+    textClass: "text-success",
   },
   REFUNDED: {
     label: "Reembolsado",
-    classes: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    dotClass: "bg-on-surface-muted",
+    bgClass: "bg-surface-high",
+    textClass: "text-on-surface-variant",
   },
 };
 
 export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
   const config = statusConfig[status] || {
     label: status,
-    classes: "bg-gray-500/10 text-gray-600 border-gray-500/20",
+    dotClass: "bg-on-surface-muted",
+    bgClass: "bg-surface-mid",
+    textClass: "text-on-surface-variant",
   };
 
   return (
     <span
       className={clsx(
-        "inline-flex items-center rounded-full border font-medium",
-        config.classes,
-        size === "sm" ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-sm"
+        "inline-flex items-center rounded-full font-semibold tracking-wide",
+        config.bgClass,
+        config.textClass,
+        size === "sm"
+          ? "px-2.5 py-0.5 text-[0.65rem] uppercase tracking-widest"
+          : "px-3 py-1 text-xs uppercase tracking-widest"
       )}
     >
       <span
         className={clsx(
           "mr-1.5 inline-block rounded-full",
           size === "sm" ? "h-1.5 w-1.5" : "h-2 w-2",
-          status === "PENDING" && "bg-amber-500 animate-pulse-soft",
-          status === "HELD" && "bg-blue-500",
-          status === "DELIVERED" && "bg-cyan-500",
-          status === "DISPUTED" && "bg-red-500 animate-pulse-soft",
-          status === "COMPLETED" && "bg-green-500",
-          status === "REFUNDED" && "bg-purple-500"
+          config.dotClass
         )}
       />
       {config.label}

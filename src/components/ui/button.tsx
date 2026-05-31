@@ -12,23 +12,25 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={clsx(
-          "inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "inline-flex items-center justify-center font-medium transition-all duration-300 ease-out",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
           "disabled:pointer-events-none disabled:opacity-50",
           "active:scale-[0.98]",
+          // Architectural roundedness — 0.25rem
+          "rounded",
           // Variants
           variant === "primary" &&
-            "bg-brand-600 text-white hover:bg-brand-700 shadow-sm hover:shadow-md",
+            "bg-primary text-on-primary hover:bg-primary-container",
           variant === "secondary" &&
-            "bg-muted text-foreground hover:bg-border border border-border",
+            "bg-surface-mid text-on-surface hover:bg-surface-high",
           variant === "danger" &&
-            "bg-red-600 text-white hover:bg-red-700 shadow-sm",
+            "bg-error text-white hover:bg-error/90",
           variant === "ghost" &&
-            "text-muted-foreground hover:text-foreground hover:bg-muted",
+            "text-on-surface-muted hover:text-on-surface hover:bg-surface-low",
           // Sizes
           size === "sm" && "h-8 px-3 text-sm gap-1.5",
-          size === "md" && "h-10 px-4 text-sm gap-2",
-          size === "lg" && "h-12 px-6 text-base gap-2.5",
+          size === "md" && "h-10 px-5 text-sm gap-2",
+          size === "lg" && "h-12 px-7 text-base gap-2.5",
           className
         )}
         {...props}
