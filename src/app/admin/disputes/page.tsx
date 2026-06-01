@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
+import { DisputeActions } from "@/components/admin/DisputeActions";
 
 export const metadata: Metadata = {
   title: "Disputas — Admin",
@@ -77,17 +78,7 @@ export default async function AdminDisputesPage() {
                     {formatCurrency(Number(dispute.transaction.amount))}
                   </p>
                   {!dispute.resolution && (
-                    <div className="flex gap-2 flex-wrap justify-end">
-                      <button className="rounded bg-success px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-success/80">
-                        Favor vendedor
-                      </button>
-                      <button className="rounded bg-info px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-info/80">
-                        Reembolso parcial
-                      </button>
-                      <button className="rounded bg-error px-4 py-2 text-label-sm text-white transition-colors duration-300 hover:bg-error/80">
-                        Favor comprador
-                      </button>
-                    </div>
+                    <DisputeActions orderId={dispute.transaction.orderId} />
                   )}
                 </div>
               </div>

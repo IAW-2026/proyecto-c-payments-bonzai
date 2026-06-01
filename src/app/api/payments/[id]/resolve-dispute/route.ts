@@ -15,17 +15,17 @@ export async function POST(
   try {
     const { id: orderId } = await params;
     const body = await request.json();
-    const { resolution, refundAmount, resolutionNotes } = body;
+    const { resolution, resolutionNotes } = body;
 
     if (
       !resolution ||
-      !["FAVOR_BUYER", "FAVOR_SELLER", "PARTIAL_REFUND"].includes(resolution)
+      !["FAVOR_BUYER", "FAVOR_SELLER"].includes(resolution)
     ) {
       return NextResponse.json(
         {
           error: "INVALID_RESOLUTION_DATA",
           message:
-            "La resolución debe ser FAVOR_BUYER, FAVOR_SELLER o PARTIAL_REFUND.",
+            "La resolución debe ser FAVOR_BUYER o FAVOR_SELLER.",
         },
         { status: 422 }
       );
@@ -54,26 +54,11 @@ export async function POST(
       );
     }
 
-    if (
-      resolution === "PARTIAL_REFUND" &&
-      (!refundAmount || refundAmount <= 0)
-    ) {
-      return NextResponse.json(
-        {
-          error: "INVALID_RESOLUTION_DATA",
-          message: "Para reembolso parcial se requiere un monto válido.",
-        },
-        { status: 422 }
-      );
-    }
-
     // Resolver disputa
     const actualRefundAmount =
       resolution === "FAVOR_BUYER"
         ? Number(transaction.amount)
-        : resolution === "PARTIAL_REFUND"
-          ? refundAmount
-          : 0;
+        : 0;
 
     await db.dispute.update({
       where: { id: transaction.dispute.id },
@@ -104,7 +89,7 @@ export async function POST(
         },
       });
     } else {
-      // Reembolso total o parcial: quitar de held
+      // Reembolso total: quitar de held
       await db.wallet.update({
         where: { userId: transaction.sellerId },
         data: {
