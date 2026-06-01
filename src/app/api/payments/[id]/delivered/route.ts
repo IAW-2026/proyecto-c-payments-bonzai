@@ -4,9 +4,9 @@ import { db } from "@/lib/db";
 /**
  * POST /api/payments/[id]/delivered
  * Notificación de que el pedido fue entregado.
- * Consumido por: Shipping App
+ * Consumido por: Shipping App / Seller App
  *
- * Aquí `id` se interpreta como `transactionId`.
+ * Aquí `id` se interpreta como `orderId`.
  * Cambia el estado de la transacción a DELIVERED.
  */
 export async function POST(
@@ -14,7 +14,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: transactionId } = await params;
+    const { id: orderId } = await params;
     const body = await request.json();
 
     const { trackingId, status, deliveredAt } = body;
@@ -31,9 +31,9 @@ export async function POST(
       );
     }
 
-    // Buscar transacción en la DB
+    // Buscar transacción en la DB por orderId
     const transaction = await db.transaction.findUnique({
-      where: { id: transactionId },
+      where: { orderId },
     });
 
     if (!transaction) {
@@ -56,7 +56,7 @@ export async function POST(
 
     // Actualizar estado a DELIVERED
     await db.transaction.update({
-      where: { id: transactionId },
+      where: { id: transaction.id },
       data: { status: "DELIVERED" },
     });
 
@@ -70,7 +70,8 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      transactionId,
+      transactionId: transaction.id,
+      orderId: transaction.orderId,
       newStatus: "DELIVERED",
       fundsReleaseDate: fundsReleaseDate.toISOString(),
       message: `Entrega registrada. Fondos retenidos por ${disputeWindowDays} días de protección.`,

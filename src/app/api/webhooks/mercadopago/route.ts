@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { paymentClient } from "@/lib/mercadopago";
-import { confirmPaymentToSeller } from "@/lib/mocks/seller-api";
 
 /**
  * POST /api/webhooks/mercadopago
@@ -10,11 +9,11 @@ import { confirmPaymentToSeller } from "@/lib/mocks/seller-api";
  *
  * Flujo cuando se recibe un pago aprobado:
  * 1. Consulta los detalles del pago en MP
- * 2. Busca la transacción asociada (por external_reference)
- * 3. Actualiza el estado de la transacción a HELD
- * 4. Crea entradas en el libro mayor (ledger)
- * 5. Actualiza/crea la wallet del vendedor
- * 6. Notifica a Seller App
+ * 2. Busca la CheckoutSession asociada (por external_reference)
+ * 3. Actualiza el estado de la sesión y de todas sus transacciones a HELD
+ * 4. Crea entradas en el libro mayor (ledger) por cada transacción
+ * 5. Actualiza/crea la wallet de los vendedores
+ * 6. Notifica a Seller App (M2M Webhook)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -22,9 +21,6 @@ export async function POST(request: NextRequest) {
 
     console.log("[webhook] Received:", JSON.stringify(body));
 
-    // Mercado Pago envía distintos formatos de notificación
-    // IPN: { type: "payment", data: { id: "123" } }
-    // Webhook v2: { action: "payment.created", data: { id: "123" } }
     const eventType = body.type || body.action;
     const paymentId = body.data?.id;
 
@@ -41,16 +37,15 @@ export async function POST(request: NextRequest) {
     ) {
       console.log(`[webhook] Processing payment ${paymentId}`);
 
-      // 1. Consultar detalles del pago en Mercado Pago (o usar mock si estamos debuggeando)
       let mpPayment;
       
       if (body.debug_mock_transaction_id) {
-        // MOCK MODE: Evita llamar a Mercado Pago para no sufrir sus bugs de Sandbox
+        // MOCK MODE: Evita llamar a Mercado Pago para debug
         console.log("[webhook] ⚠️ RUNNING IN MOCK DEBUG MODE");
         mpPayment = {
           status: "approved",
           external_reference: body.debug_mock_transaction_id,
-          transaction_amount: 1000 // Falso
+          transaction_amount: 1000
         };
       } else {
         try {
@@ -66,113 +61,135 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true });
       }
 
-      const transactionId = mpPayment.external_reference;
-      const mpStatus = mpPayment.status; // approved, rejected, pending, etc.
+      const checkoutSessionId = mpPayment.external_reference;
+      const mpStatus = mpPayment.status;
 
       console.log(
-        `[webhook] Payment ${paymentId}: status=${mpStatus}, txn=${transactionId}`
+        `[webhook] Payment ${paymentId}: status=${mpStatus}, session=${checkoutSessionId}`
       );
 
-      // 2. Buscar transacción en la DB
-      const transaction = await db.transaction.findUnique({
-        where: { id: transactionId },
+      // Buscar la sesión y sus transacciones
+      const session = await db.checkoutSession.findUnique({
+        where: { id: checkoutSessionId },
+        include: { transactions: true },
       });
 
-      if (!transaction) {
-        console.error(`[webhook] Transaction ${transactionId} not found`);
+      if (!session) {
+        console.error(`[webhook] CheckoutSession ${checkoutSessionId} not found`);
         return NextResponse.json({ success: true });
       }
 
-      // 3. Actualizar Payment record con el estado de MP
+      // Actualizar Payment record con el estado de MP
       await db.payment.updateMany({
-        where: { transactionId: transaction.id },
+        where: { checkoutSessionId: session.id },
         data: {
           externalId: String(paymentId),
           providerStatus: mpStatus,
         },
       });
 
-      // 4. Procesar según estado del pago
-      if (mpStatus === "approved" && transaction.status === "PENDING") {
-        // Pago aprobado → cambiar transacción a HELD
-        await db.transaction.update({
-          where: { id: transaction.id },
+      // Procesar si el pago fue aprobado
+      if (mpStatus === "approved" && session.status === "PENDING") {
+        
+        // 1. Marcar sesión como HELD
+        await db.checkoutSession.update({
+          where: { id: session.id },
           data: { status: "HELD" },
         });
 
-        // 5. Crear entradas en el libro mayor
-        // DEBIT al comprador (pagó)
-        await db.ledgerEntry.create({
-          data: {
-            userId: transaction.buyerId,
-            transactionId: transaction.id,
-            type: "DEBIT",
-            amount: transaction.amount,
-            description: `Pago — ${transaction.orderId}`,
-          },
+        // 2. Marcar TODAS las transacciones como HELD
+        await db.transaction.updateMany({
+          where: { checkoutSessionId: session.id },
+          data: { status: "HELD" },
         });
 
-        // CREDIT al vendedor (neto, retenido)
-        await db.ledgerEntry.create({
-          data: {
-            userId: transaction.sellerId,
-            transactionId: transaction.id,
-            type: "CREDIT",
-            amount: transaction.netAmount,
-            description: `Pago retenido — ${transaction.orderId}`,
-          },
-        });
-
-        // CREDIT a la plataforma (comisión)
-        await db.ledgerEntry.create({
-          data: {
-            userId: "platform",
-            transactionId: transaction.id,
-            type: "CREDIT",
-            amount: transaction.commissionAmount,
-            description: `Comisión — ${transaction.orderId}`,
-          },
-        });
-
-        // 6. Actualizar/crear wallet del vendedor
-        await db.wallet.upsert({
-          where: { userId: transaction.sellerId },
-          create: {
-            userId: transaction.sellerId,
-            availableBalance: 0,
-            heldBalance: transaction.netAmount,
-          },
-          update: {
-            heldBalance: {
-              increment: transaction.netAmount,
+        // 3. Crear Ledger Entries y actualizar Wallets para cada transacción
+        for (const txn of session.transactions) {
+          // DEBIT al comprador
+          await db.ledgerEntry.create({
+            data: {
+              userId: txn.buyerId,
+              transactionId: txn.id,
+              type: "DEBIT",
+              amount: txn.amount,
+              description: `Pago — ${txn.orderId}`,
             },
-          },
-        });
+          });
 
-        // 7. Notificar a Seller App (mock en Etapa 2)
-        await confirmPaymentToSeller(
-          transaction.orderId,
-          transaction.id,
-          new Date().toISOString()
-        );
+          // CREDIT al vendedor
+          await db.ledgerEntry.create({
+            data: {
+              userId: txn.sellerId,
+              transactionId: txn.id,
+              type: "CREDIT",
+              amount: txn.netAmount,
+              description: `Pago retenido — ${txn.orderId}`,
+            },
+          });
+
+          // CREDIT a plataforma
+          await db.ledgerEntry.create({
+            data: {
+              userId: "platform",
+              transactionId: txn.id,
+              type: "CREDIT",
+              amount: txn.commissionAmount,
+              description: `Comisión — ${txn.orderId}`,
+            },
+          });
+
+          // Actualizar wallet del vendedor
+          await db.wallet.upsert({
+            where: { userId: txn.sellerId },
+            create: {
+              userId: txn.sellerId,
+              availableBalance: 0,
+              heldBalance: txn.netAmount,
+            },
+            update: {
+              heldBalance: { increment: txn.netAmount },
+            },
+          });
+        }
+
+        // 4. M2M Webhook Notification a Seller App
+        const sellerWebhookUrl = process.env.SELLER_WEBHOOK_URL;
+        if (sellerWebhookUrl) {
+          try {
+            await fetch(sellerWebhookUrl, {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "x-service-key": process.env.SELLER_API_KEY || "test-key-123"
+              },
+              body: JSON.stringify({
+                buyerId: session.buyerId,
+                orderIds: session.transactions.map(t => t.orderId),
+                transactionId: session.id
+              })
+            });
+            console.log(`[webhook] Notified Seller App at ${sellerWebhookUrl}`);
+          } catch (err) {
+            console.error(`[webhook] Error notifying Seller App:`, err);
+            // No bloqueamos el flujo principal si el webhook a Seller App falla
+          }
+        } else {
+          console.log(`[webhook] SELLER_WEBHOOK_URL not configured. Skipping M2M notification.`);
+        }
 
         console.log(
-          `[webhook] ✅ Transaction ${transaction.id} → HELD (${mpPayment.transaction_amount} ARS)`
+          `[webhook] ✅ CheckoutSession ${session.id} → HELD (${mpPayment.transaction_amount} ARS)`
         );
       } else if (mpStatus === "rejected") {
         console.log(
-          `[webhook] ❌ Payment rejected for txn ${transaction.id}`
+          `[webhook] ❌ Payment rejected for session ${session.id}`
         );
-        // Podríamos marcar la transacción como fallida, pero
-        // dejamos en PENDING por si el comprador reintenta
       }
     }
 
-    // Mercado Pago espera un 200 OK
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[webhook] Error:", error);
-    // Siempre devolver 200 para evitar reintentos de MP
     return NextResponse.json({ success: true });
   }
 }
