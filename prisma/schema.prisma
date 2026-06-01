@@ -37,7 +37,6 @@ enum DisputeReason {
 enum DisputeResolution {
   FAVOR_BUYER
   FAVOR_SELLER
-  PARTIAL_REFUND
 }
 
 // ─── Models ──────────────────────────────────────────────
