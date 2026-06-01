@@ -3,66 +3,67 @@ import { db } from "@/lib/db";
 
 /**
  * POST /api/payments/[id]/delivered
- * Notificación de que el pedido fue entregado.
- * Consumido por: Shipping App / Seller App
+ * Notificación de que el pedido global fue entregado.
+ * Consumido por: Shipping App
  *
- * Aquí `id` se interpreta como `orderId`.
- * Cambia el estado de la transacción a DELIVERED.
+ * Aquí `id` se interpreta como el CheckoutSession ID (transactionId para ellos).
+ * Cambia el estado de todas las transacciones de esa sesión a DELIVERED.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: orderId } = await params;
-    const body = await request.json();
+    const { id: checkoutSessionId } = await params;
 
-    const { trackingId, status, deliveredAt } = body;
-
-    // Validaciones
-    if (!trackingId || status !== "DELIVERED" || !deliveredAt) {
+    // Validación de seguridad M2M
+    const apiKey = request.headers.get("x-shipping-key");
+    if (!process.env.SHIPPING_API_KEY || apiKey !== process.env.SHIPPING_API_KEY) {
       return NextResponse.json(
-        {
-          error: "INVALID_STATUS",
-          message:
-            "trackingId, status=DELIVERED y deliveredAt son obligatorios.",
-        },
-        { status: 400 }
+        { error: "UNAUTHORIZED", message: "Credenciales de Shipping inválidas." },
+        { status: 401 }
       );
     }
 
-    // Buscar transacción en la DB por orderId
-    const transaction = await db.transaction.findUnique({
-      where: { orderId },
+    // Buscar sesión en la DB
+    const session = await db.checkoutSession.findUnique({
+      where: { id: checkoutSessionId },
+      include: { transactions: true }
     });
 
-    if (!transaction) {
+    if (!session) {
       return NextResponse.json(
-        { error: "TRANSACTION_NOT_FOUND" },
+        { error: "SESSION_NOT_FOUND", message: "No se encontró la sesión de pago." },
         { status: 404 }
       );
     }
 
-    // Solo se puede marcar como DELIVERED si está en HELD
-    if (transaction.status !== "HELD") {
+    // Verificar si hay transacciones en HELD
+    const heldTransactions = session.transactions.filter(t => t.status === "HELD");
+
+    if (heldTransactions.length === 0) {
       return NextResponse.json(
         {
           error: "INVALID_STATUS",
-          message: `No se puede marcar como entregado: estado actual es ${transaction.status}`,
+          message: "No hay transacciones en estado HELD listas para ser marcadas como entregadas.",
         },
         { status: 400 }
       );
     }
 
-    // Actualizar estado a DELIVERED
-    await db.transaction.update({
-      where: { id: transaction.id },
+    // Actualizar estado a DELIVERED solo para las que estaban en HELD
+    await db.transaction.updateMany({
+      where: { 
+        checkoutSessionId,
+        status: "HELD" 
+      },
       data: { status: "DELIVERED" },
     });
 
     const disputeWindowDays = parseInt(
       process.env.DISPUTE_WINDOW_DAYS || "7"
     );
+    const deliveredAt = new Date();
     const fundsReleaseDate = new Date(deliveredAt);
     fundsReleaseDate.setDate(
       fundsReleaseDate.getDate() + disputeWindowDays
@@ -70,11 +71,11 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      transactionId: transaction.id,
-      orderId: transaction.orderId,
+      transactionId: session.id,
+      updatedCount: heldTransactions.length,
       newStatus: "DELIVERED",
       fundsReleaseDate: fundsReleaseDate.toISOString(),
-      message: `Entrega registrada. Fondos retenidos por ${disputeWindowDays} días de protección.`,
+      message: `Entrega global registrada (${heldTransactions.length} sub-órdenes). Fondos protegidos por ${disputeWindowDays} días.`,
     });
   } catch (error) {
     console.error("[delivered] Error:", error);
