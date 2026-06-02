@@ -33,7 +33,8 @@ export default async function AdminLedgerPage() {
 
       <Card>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr>
@@ -86,6 +87,54 @@ export default async function AdminLedgerPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden flex flex-col gap-4">
+            {ledgerEntries.map((entry) => (
+              <div key={entry.id} className="border border-surface-high rounded-xl p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-widest mb-2 ${
+                      entry.type === "CREDIT"
+                        ? "bg-success-container text-success"
+                        : "bg-error-container text-error"
+                    }`}>
+                      {entry.type === "CREDIT" ? "CRÉDITO" : "DÉBITO"}
+                    </span>
+                    <p className="text-body-sm text-on-surface break-all font-medium">User: {entry.userId}</p>
+                  </div>
+                  <p className={`text-headline-sm font-bold ${
+                    entry.type === "CREDIT" ? "text-success" : "text-error"
+                  }`}>
+                    {entry.type === "CREDIT" ? "+" : "-"}{formatCurrency(Number(entry.amount))}
+                  </p>
+                </div>
+                
+                <div className="space-y-1">
+                  <p className="text-label-sm text-on-surface-muted">
+                    Tx: <span className="font-mono">{entry.transactionId}</span>
+                  </p>
+                  <p className="text-label-sm text-on-surface-muted">
+                    ID: <span className="font-mono">{entry.id}</span>
+                  </p>
+                </div>
+                
+                <div className="flex justify-between items-end border-t border-surface-high pt-2 mt-1">
+                  <p className="text-body-sm text-on-surface-variant flex-1 pr-2">
+                    {entry.description || "-"}
+                  </p>
+                  <p className="text-label-sm text-on-surface-muted whitespace-nowrap text-right">
+                    {formatDate(entry.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {ledgerEntries.length === 0 && (
+              <div className="py-8 text-center text-on-surface-muted border-2 border-dashed border-surface-high rounded-xl">
+                No hay registros en el libro mayor.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

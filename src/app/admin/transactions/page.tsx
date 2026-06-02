@@ -2,6 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
+import { TransactionFilters } from "@/components/admin/TransactionFilters";
+import { TransactionStatus } from "@/generated/prisma/client";
 
 export const metadata: Metadata = {
   title: "Transacciones — Admin",
@@ -20,7 +22,26 @@ export default async function AdminTransactionsPage({
 }: {
   searchParams: Promise<{ page?: string; status?: string; q?: string }>;
 }) {
+  const { status, q } = await searchParams;
+
+  // Construir consulta dinámica basada en los filtros
+  const whereClause: any = {};
+  
+  if (status) {
+    whereClause.status = status as TransactionStatus;
+  }
+  
+  if (q) {
+    whereClause.OR = [
+      { id: { contains: q, mode: "insensitive" } },
+      { orderId: { contains: q, mode: "insensitive" } },
+      { buyerId: { contains: q, mode: "insensitive" } },
+      { sellerId: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
   const transactions = await db.transaction.findMany({
+    where: whereClause,
     orderBy: { createdAt: "desc" },
     take: 50, // Límite temporal hasta implementar paginación real
   });
@@ -36,34 +57,18 @@ export default async function AdminTransactionsPage({
         </p>
       </div>
 
-      {/* Search & Filters — minimalist */}
+      {/* Search & Filters */}
       <Card>
         <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Buscar por ID, orden, comprador o vendedor..."
-                className="w-full border-0 border-b-2 border-surface-high bg-transparent px-1 py-3 text-body-sm text-on-surface placeholder:text-on-surface-muted focus:border-primary focus:outline-none transition-colors duration-300"
-              />
-            </div>
-            <select className="border-0 border-b-2 border-surface-high bg-transparent px-1 py-3 text-body-sm text-on-surface focus:border-primary focus:outline-none transition-colors duration-300">
-              <option value="">Todos los estados</option>
-              <option value="PENDING">Pendiente</option>
-              <option value="HELD">Retenido</option>
-              <option value="DELIVERED">Entregado</option>
-              <option value="DISPUTED">En disputa</option>
-              <option value="COMPLETED">Completado</option>
-              <option value="REFUNDED">Reembolsado</option>
-            </select>
-          </div>
+          <TransactionFilters />
         </CardContent>
       </Card>
 
       {/* Table */}
       <Card>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr>
@@ -102,6 +107,52 @@ export default async function AdminTransactionsPage({
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden flex flex-col gap-4">
+            {transactions.map((txn) => (
+              <div key={txn.id} className="border border-surface-high rounded-xl p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-body-md font-semibold text-on-surface">
+                      {txn.orderId}
+                    </p>
+                    <p className="text-label-sm text-on-surface-muted font-mono mt-0.5">
+                      {txn.id}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-headline-sm font-bold text-on-surface">
+                      {formatCurrency(Number(txn.amount))}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-body-sm mt-1">
+                  <div>
+                    <p className="text-label-sm text-on-surface-muted mb-0.5">Comprador</p>
+                    <p className="text-on-surface truncate pr-2">{txn.buyerId}</p>
+                  </div>
+                  <div>
+                    <p className="text-label-sm text-on-surface-muted mb-0.5">Vendedor</p>
+                    <p className="text-on-surface truncate pr-2">{txn.sellerId}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-end border-t border-surface-high pt-3 mt-1">
+                  <StatusBadge status={txn.status} size="sm" />
+                  <p className="text-label-sm text-on-surface-muted">
+                    {formatDate(txn.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {transactions.length === 0 && (
+              <div className="py-8 text-center text-on-surface-muted border-2 border-dashed border-surface-high rounded-xl">
+                No hay transacciones registradas en el sistema.
+              </div>
+            )}
           </div>
 
           {/* Pagination */}

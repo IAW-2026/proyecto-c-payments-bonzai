@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { TransactionFilters } from "@/components/admin/TransactionFilters";
+import { TransactionStatus } from "@/generated/prisma/client";
 
 export const metadata: Metadata = {
   title: "Transacciones",
@@ -28,10 +30,30 @@ export default async function TransactionsPage({
     redirect("/sign-in");
   }
 
+  const { status, q } = await searchParams;
+
+  // Construir consulta dinámica basada en los filtros
+  const whereClause: any = {
+    OR: [{ buyerId: userId }, { sellerId: userId }],
+  };
+  
+  if (status) {
+    whereClause.status = status as TransactionStatus;
+  }
+  
+  if (q) {
+    whereClause.AND = [
+      {
+        OR: [
+          { id: { contains: q, mode: "insensitive" } },
+          { orderId: { contains: q, mode: "insensitive" } },
+        ]
+      }
+    ];
+  }
+
   const transactions = await db.transaction.findMany({
-    where: {
-      OR: [{ buyerId: userId }, { sellerId: userId }],
-    },
+    where: whereClause,
     orderBy: { createdAt: "desc" },
   });
 
@@ -47,34 +69,18 @@ export default async function TransactionsPage({
         </p>
       </div>
 
-      {/* Filters — minimalist inputs */}
+      {/* Filters */}
       <Card>
         <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Buscar por ID de transacción u orden..."
-                className="w-full border-0 border-b-2 border-surface-high bg-transparent px-1 py-3 text-body-sm text-on-surface placeholder:text-on-surface-muted focus:border-primary focus:outline-none transition-colors duration-300"
-              />
-            </div>
-            <select className="border-0 border-b-2 border-surface-high bg-transparent px-1 py-3 text-body-sm text-on-surface focus:border-primary focus:outline-none transition-colors duration-300">
-              <option value="">Todos los estados</option>
-              <option value="PENDING">Pendiente</option>
-              <option value="HELD">Retenido</option>
-              <option value="DELIVERED">Entregado</option>
-              <option value="DISPUTED">En disputa</option>
-              <option value="COMPLETED">Completado</option>
-              <option value="REFUNDED">Reembolsado</option>
-            </select>
-          </div>
+          <TransactionFilters basePath="/dashboard/transactions" />
         </CardContent>
       </Card>
 
-      {/* Transactions Table */}
+      {/* Transactions Table & Cards */}
       <Card>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr>
@@ -101,7 +107,7 @@ export default async function TransactionsPage({
                     <td className="py-4 text-body-sm text-on-surface-muted">{formatCurrency(Number(txn.commissionAmount))}</td>
                     <td className="py-4 text-body-sm font-medium text-primary">{formatCurrency(Number(txn.netAmount))}</td>
                     <td className="py-4"><StatusBadge status={txn.status} size="sm" /></td>
-                    <td className="py-4 text-body-sm text-on-surface-muted">{formatDate(txn.createdAt)}</td>
+                    <td className="py-4 text-body-sm text-on-surface-muted whitespace-nowrap">{formatDate(txn.createdAt)}</td>
                   </tr>
                 ))}
                 {transactions.length === 0 && (
@@ -113,6 +119,52 @@ export default async function TransactionsPage({
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden flex flex-col gap-4">
+            {transactions.map((txn) => (
+              <div key={txn.id} className="border border-surface-high rounded-xl p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-body-md font-semibold text-on-surface">
+                      {txn.orderId}
+                    </p>
+                    <p className="text-label-sm text-on-surface-muted font-mono mt-0.5">
+                      {txn.id}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-headline-sm font-bold text-on-surface">
+                      {formatCurrency(Number(txn.amount))}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-body-sm mt-1">
+                  <div>
+                    <p className="text-label-sm text-on-surface-muted mb-0.5">Comisión</p>
+                    <p className="text-on-surface-variant">{formatCurrency(Number(txn.commissionAmount))}</p>
+                  </div>
+                  <div>
+                    <p className="text-label-sm text-on-surface-muted mb-0.5">Neto a recibir/pagar</p>
+                    <p className="font-semibold text-primary">{formatCurrency(Number(txn.netAmount))}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-end border-t border-surface-high pt-3 mt-1">
+                  <StatusBadge status={txn.status} size="sm" />
+                  <p className="text-label-sm text-on-surface-muted">
+                    {formatDate(txn.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {transactions.length === 0 && (
+              <div className="py-8 text-center text-on-surface-muted border-2 border-dashed border-surface-high rounded-xl">
+                No tienes transacciones registradas.
+              </div>
+            )}
           </div>
 
           {/* Pagination */}

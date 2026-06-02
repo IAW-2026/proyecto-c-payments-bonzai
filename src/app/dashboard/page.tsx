@@ -138,7 +138,8 @@ export default async function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr>
@@ -193,6 +194,41 @@ export default async function DashboardPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden flex flex-col gap-4 mt-4">
+            {recentTransactions.map((txn) => (
+              <div key={txn.id} className="border border-surface-high rounded-xl p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-body-md font-semibold text-on-surface">
+                      {txn.orderId}
+                    </p>
+                    <p className="text-label-sm text-on-surface-muted font-mono mt-0.5">
+                      {txn.id}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-headline-sm font-bold text-on-surface">
+                      {formatCurrency(Number(txn.amount))}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between items-end border-t border-surface-high pt-3 mt-1">
+                  <StatusBadge status={txn.status} size="sm" />
+                  <p className="text-label-sm text-on-surface-muted">
+                    {formatDate(txn.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {recentTransactions.length === 0 && (
+              <div className="py-8 text-center text-on-surface-muted border-2 border-dashed border-surface-high rounded-xl mt-4">
+                No tienes transacciones recientes.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

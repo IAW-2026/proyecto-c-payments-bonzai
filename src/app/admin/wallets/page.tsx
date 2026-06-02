@@ -33,7 +33,8 @@ export default async function AdminWalletsPage() {
 
       <Card>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr>
@@ -76,6 +77,49 @@ export default async function AdminWalletsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden flex flex-col gap-4">
+            {wallets.map((wallet) => (
+              <div key={wallet.id} className="border border-surface-high rounded-xl p-5 flex flex-col gap-4">
+                <div className="flex justify-between items-center border-b border-surface-high pb-3">
+                  <h3 className="text-body-md font-semibold text-on-surface truncate pr-4">
+                    {wallet.userId}
+                  </h3>
+                  <span className="text-label-sm text-on-surface-muted whitespace-nowrap">
+                    {formatDate(wallet.updatedAt)}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-sm text-on-surface-muted uppercase tracking-wider">Disponible</span>
+                    <span className="text-body-md font-semibold text-success">
+                      {formatCurrency(Number(wallet.availableBalance))}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-sm text-on-surface-muted uppercase tracking-wider">Retenido</span>
+                    <span className="text-body-md text-info">
+                      {formatCurrency(Number(wallet.heldBalance))}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-surface-low rounded-lg p-3 flex justify-between items-center mt-2">
+                  <span className="text-label-md font-bold text-on-surface-variant uppercase">Total Balance</span>
+                  <span className="text-headline-sm font-bold text-on-surface">
+                    {formatCurrency(Number(wallet.availableBalance) + Number(wallet.heldBalance))}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {wallets.length === 0 && (
+              <div className="py-8 text-center text-on-surface-muted border-2 border-dashed border-surface-high rounded-xl">
+                No hay billeteras registradas en el sistema.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
