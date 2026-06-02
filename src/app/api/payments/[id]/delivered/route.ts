@@ -60,6 +60,18 @@ export async function POST(
       data: { status: "DELIVERED" },
     });
 
+    // Actualizar también la sesión padre si es necesario
+    const remainingNonDelivered = session.transactions.filter(
+      (t) => t.status !== "HELD" && t.status !== "DELIVERED"
+    );
+
+    if (remainingNonDelivered.length === 0) {
+      await db.checkoutSession.update({
+        where: { id: checkoutSessionId },
+        data: { status: "DELIVERED" },
+      });
+    }
+
     const disputeWindowDays = parseInt(
       process.env.DISPUTE_WINDOW_DAYS || "7"
     );
