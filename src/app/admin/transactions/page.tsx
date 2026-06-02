@@ -3,7 +3,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { TransactionFilters } from "@/components/admin/TransactionFilters";
-import { TransactionStatus } from "@prisma/client";
+import { TransactionStatus } from "@/generated/prisma/client";
 
 export const metadata: Metadata = {
   title: "Transacciones — Admin",

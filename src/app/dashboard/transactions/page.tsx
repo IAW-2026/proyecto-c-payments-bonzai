@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { TransactionFilters } from "@/components/admin/TransactionFilters";
-import { TransactionStatus } from "@prisma/client";
+import { TransactionStatus } from "@/generated/prisma/client";
 
 export const metadata: Metadata = {
   title: "Transacciones",

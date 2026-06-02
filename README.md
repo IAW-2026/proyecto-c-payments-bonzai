@@ -40,3 +40,22 @@ Nos gustaría destacar ciertas decisiones de diseño arquitectónico y de UI/UX 
 - **Carrito Multi-Vendedor Atómico**: Desarrollamos una relación padre-hijo (`CheckoutSession` -> `Transaction`) que nos permite pagar un carrito con productos de múltiples vendedores usando un solo link de Mercado Pago, pero fraccionando el dinero internamente para manejar comisiones y disputas individuales sin afectar el resto de la orden.
 - **UI Responsiva Híbrida**: El panel de administración utiliza patrones de diseño avanzado. En lugar de forzar tablas HTML en móviles, detectamos el tamaño de pantalla y transformamos dinámicamente las grillas en *Responsive Cards* apiladas y menús tipo *Drawer*, ofreciendo una experiencia similar a una app nativa.
 - **Limitación Conocida**: El modelo de datos contempla un período de protección de fondos (los fondos permanecen en estado `HELD` durante X días tras la entrega). Si bien el estado y las fechas están implementadas, el *Cron Job* automático que ejecuta la liberación de los fondos hacia el estado `COMPLETED` queda como trabajo futuro para una próxima iteración.
+
+## Endpoints API
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/api/payments/checkout` | Iniciar pago (Buyer App) |
+| `POST` | `/api/payments/{checkoutSessionId}/delivered` | Notificar entrega (Shipping App) |
+| `GET` | `/api/payments/{transactionId}/status` | Estado del pago (Seller App) |
+| `POST` | `/api/webhooks/mercadopago` | Webhook Mercado Pago |
+| `GET` | `/api/payments/balance` | Consultar saldo (Seller/Admin) |
+| `POST` | `/api/payments/{orderId}/dispute` | Abrir disputa (Buyer App) |
+| `POST` | `/api/payments/{orderId}/resolve-dispute` | Resolver disputa (Admin) |
+| `POST` | `/api/payments/{orderId}/refund` | Reembolso (Admin) |
+| `GET` | `/api/admin/ledger` | Libro mayor (Admin) |
+
+---
+
+**Santino Trevisan** — Payments App  
+Proyecto IAW 2026 — Comisión Bonzai
