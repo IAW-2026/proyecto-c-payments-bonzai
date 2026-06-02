@@ -94,19 +94,19 @@ export default async function AdminDashboardPage() {
             {recentDisputes.map((dispute, i) => (
               <div
                 key={dispute.id}
-                className={`flex items-center justify-between rounded-lg px-4 py-4 transition-colors duration-200 hover:bg-surface-low ${
+                className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg px-4 py-4 transition-colors duration-200 hover:bg-surface-low ${
                   i % 2 === 0 ? "bg-transparent" : "bg-surface-low/40"
                 }`}
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-body-sm font-medium text-on-surface">
                     {dispute.transaction.orderId}
                   </p>
-                  <p className="text-label-sm text-on-surface-muted">
+                  <p className="text-label-sm text-on-surface-muted truncate">
                     {dispute.reason.replace(/_/g, " ")} · {dispute.id}
                   </p>
                 </div>
-                <div className="text-right flex items-center gap-4">
+                <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                   <p className="text-body-sm font-semibold text-on-surface">
                     {formatCurrency(Number(dispute.transaction.amount))}
                   </p>
