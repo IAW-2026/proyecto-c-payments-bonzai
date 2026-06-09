@@ -1,9 +1,8 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { redirect } from "next/navigation";
+import { requireAuth } from "@/lib/auth";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -12,59 +11,66 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-function formatDate(dateStr: Date | string): string {
+function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("es-AR", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(dateStr));
+  }).format(date);
 }
 
 export default async function DashboardPage() {
-  const { userId } = await auth();
+  const userId = await requireAuth();
 
-  if (!userId) {
-    redirect("/sign-in");
-  }
-
-  // Obtener la billetera del usuario
-  let wallet = await db.wallet.findUnique({
+  // 1. Billetera (Saldo disponible y retenido)
+  const wallet = await db.wallet.upsert({
     where: { userId },
+    create: {
+      userId,
+      availableBalance: 0,
+      heldBalance: 0,
+    },
+    update: {},
   });
 
-  if (!wallet) {
-    wallet = await db.wallet.create({
-      data: {
-        userId,
-        availableBalance: 0,
-        heldBalance: 0,
-      },
-    });
-  }
+  const available = Number(wallet.availableBalance);
+  const held = Number(wallet.heldBalance);
 
-  // Obtener transacciones recientes donde el usuario es comprador o vendedor
-  const recentTransactions = await db.transaction.findMany({
+  // 2. Cantidad de transacciones del usuario (como comprador o vendedor)
+  const totalTransactions = await db.transaction.count({
     where: {
-      OR: [{ buyerId: userId }, { sellerId: userId }],
+      OR: [
+        { buyerId: userId },
+        { sellerId: userId },
+      ],
     },
-    orderBy: { createdAt: "desc" },
-    take: 5,
   });
 
-  // Estadísticas globales del usuario
-  const stats = await db.transaction.aggregate({
+  // 3. Volumen total operado (suma de transacciones completadas)
+  const volumeResult = await db.transaction.aggregate({
     where: {
-      OR: [{ buyerId: userId }, { sellerId: userId }],
-    },
-    _count: {
-      id: true,
+      OR: [
+        { buyerId: userId },
+        { sellerId: userId },
+      ],
+      status: "COMPLETED",
     },
     _sum: {
       amount: true,
     },
   });
+  const totalVolume = Number(volumeResult._sum.amount || 0);
 
-  const totalTransactions = stats._count.id;
-  const totalVolume = stats._sum.amount ? Number(stats._sum.amount) : 0;
+  // 4. Transacciones recientes
+  const recentTransactions = await db.transaction.findMany({
+    where: {
+      OR: [
+        { buyerId: userId },
+        { sellerId: userId },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
 
   return (
     <div className="space-y-10 animate-fade-in">
@@ -94,13 +100,13 @@ export default async function DashboardPage() {
           },
           {
             title: "Saldo retenido",
-            value: formatCurrency(Number(wallet.heldBalance)),
+            value: formatCurrency(held),
             icon: "🔒",
             description: "En período de protección",
           },
           {
             title: "Saldo disponible",
-            value: formatCurrency(Number(wallet.availableBalance)),
+            value: formatCurrency(available),
             icon: "✅",
             description: "Listo para retirar",
           },
@@ -195,41 +201,11 @@ export default async function DashboardPage() {
               </tbody>
             </table>
           </div>
-
-          {/* Mobile Cards */}
-          <div className="md:hidden flex flex-col gap-4 mt-4">
-            {recentTransactions.map((txn) => (
-              <div key={txn.id} className="border border-surface-high rounded-xl p-4 flex flex-col gap-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-body-md font-semibold text-on-surface">
-                      {txn.orderId}
-                    </p>
-                    <p className="text-label-sm text-on-surface-muted font-mono mt-0.5">
-                      {txn.id}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-headline-sm font-bold text-on-surface">
-                      {formatCurrency(Number(txn.amount))}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between items-end border-t border-surface-high pt-3 mt-1">
-                  <StatusBadge status={txn.status} size="sm" />
-                  <p className="text-label-sm text-on-surface-muted">
-                    {formatDate(txn.createdAt)}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {recentTransactions.length === 0 && (
-              <div className="py-8 text-center text-on-surface-muted border-2 border-dashed border-surface-high rounded-xl mt-4">
-                No tienes transacciones recientes.
-              </div>
-            )}
-          </div>
+          {recentTransactions.length === 0 && (
+            <p className="py-8 text-center text-body-sm text-on-surface-muted">
+              No tienes transacciones registradas aún.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
