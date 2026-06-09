@@ -1,31 +1,64 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
+import { db } from "@/lib/db";
+import { requireRole } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard",
 };
 
-const adminStats = {
-  totalTransactions: 156,
-  totalVolume: 2340000,
-  activeDisputes: 3,
-  totalCommission: 117000,
-  pendingPayments: 12,
-  completedToday: 8,
-};
-
-const recentDisputes = [
-  { id: "txn_004", orderId: "ord_104", amount: 5200, reason: "ITEM_DAMAGED", createdAt: "2026-04-27T10:20:00Z" },
-  { id: "txn_012", orderId: "ord_112", amount: 18700, reason: "ITEM_NOT_RECEIVED", createdAt: "2026-04-26T15:30:00Z" },
-  { id: "txn_019", orderId: "ord_119", amount: 9300, reason: "WRONG_ITEM", createdAt: "2026-04-25T08:45:00Z" },
-];
-
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 }
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  await requireRole(["payments_admin", "admin"]);
+
+  // 1. Total transactions count
+  const totalTransactions = await db.transaction.count();
+
+  // 2. Sum of transaction amounts (total volume)
+  const volumeResult = await db.transaction.aggregate({
+    _sum: { amount: true },
+  });
+  const totalVolume = Number(volumeResult._sum.amount || 0);
+
+  // 3. Active disputes count (where resolvedAt is null)
+  const activeDisputes = await db.dispute.count({
+    where: { resolvedAt: null },
+  });
+
+  // 4. Sum of commission amounts (total commission generated)
+  const commissionResult = await db.transaction.aggregate({
+    _sum: { commissionAmount: true },
+  });
+  const totalCommission = Number(commissionResult._sum.commissionAmount || 0);
+
+  // 5. Pending payments
+  const pendingPayments = await db.transaction.count({
+    where: { status: "PENDING" },
+  });
+
+  // 6. Completed today (completed transactions since midnight today)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const completedToday = await db.transaction.count({
+    where: {
+      status: "COMPLETED",
+      updatedAt: { gte: today },
+    },
+  });
+
+  // 7. Recent disputes
+  const disputes = await db.dispute.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    include: { transaction: true },
+  });
+
   return (
     <div className="space-y-10 animate-fade-in">
       {/* Editorial Header */}
@@ -40,12 +73,12 @@ export default function AdminDashboardPage() {
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[
-          { title: "Transacciones totales", value: adminStats.totalTransactions.toString(), icon: "📊" },
-          { title: "Volumen operado", value: formatCurrency(adminStats.totalVolume), icon: "💰" },
-          { title: "Disputas activas", value: adminStats.activeDisputes.toString(), icon: "⚖️" },
-          { title: "Comisiones generadas", value: formatCurrency(adminStats.totalCommission), icon: "🏦" },
-          { title: "Pagos pendientes", value: adminStats.pendingPayments.toString(), icon: "⏳" },
-          { title: "Completados hoy", value: adminStats.completedToday.toString(), icon: "✅" },
+          { title: "Transacciones totales", value: totalTransactions.toString(), icon: "📊" },
+          { title: "Volumen operado", value: formatCurrency(totalVolume), icon: "💰" },
+          { title: "Disputas activas", value: activeDisputes.toString(), icon: "⚖️" },
+          { title: "Comisiones generadas", value: formatCurrency(totalCommission), icon: "🏦" },
+          { title: "Pagos pendientes", value: pendingPayments.toString(), icon: "⏳" },
+          { title: "Completados hoy", value: completedToday.toString(), icon: "✅" },
         ].map((stat) => (
           <Card key={stat.title} hover>
             <CardHeader className="pb-2">
@@ -66,12 +99,12 @@ export default function AdminDashboardPage() {
         <CardHeader>
           <div className="flex items-center gap-3">
             <span className="text-xl">⚖️</span>
-            <h2 className="text-headline-md text-on-surface">Disputas activas</h2>
+            <h2 className="text-headline-md text-on-surface">Disputas recientes</h2>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-1">
-            {recentDisputes.map((dispute, i) => (
+            {disputes.map((dispute, i) => (
               <div
                 key={dispute.id}
                 className={`flex items-center justify-between rounded-lg px-4 py-4 transition-colors duration-200 hover:bg-surface-low ${
@@ -80,7 +113,7 @@ export default function AdminDashboardPage() {
               >
                 <div>
                   <p className="text-body-sm font-medium text-on-surface">
-                    {dispute.orderId}
+                    {dispute.transaction?.orderId || "Orden desconocida"}
                   </p>
                   <p className="text-label-sm text-on-surface-muted">
                     {dispute.reason.replace(/_/g, " ")} · {dispute.id}
@@ -88,13 +121,18 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="text-right flex items-center gap-4">
                   <p className="text-body-sm font-semibold text-on-surface">
-                    {formatCurrency(dispute.amount)}
+                    {formatCurrency(Number(dispute.transaction?.amount || 0))}
                   </p>
-                  <StatusBadge status="DISPUTED" size="sm" />
+                  <StatusBadge status={dispute.transaction?.status || "DISPUTED"} size="sm" />
                 </div>
               </div>
             ))}
           </div>
+          {disputes.length === 0 && (
+            <p className="py-8 text-center text-body-sm text-on-surface-muted">
+              No se encontraron disputas registradas en el sistema.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
