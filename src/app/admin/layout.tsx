@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 
 const adminNavItems = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
+  { href: "/admin/analytics", label: "Analíticas", icon: "📈" },
   { href: "/admin/transactions", label: "Transacciones", icon: "💳" },
   { href: "/admin/disputes", label: "Disputas", icon: "⚖️" },
   { href: "/admin/ledger", label: "Libro Mayor", icon: "📒" },
