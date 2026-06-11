@@ -43,6 +43,7 @@ export function Header() {
         {isLoaded && isSignedIn ? (
           <>
             <NavLink href="/dashboard">Dashboard</NavLink>
+            <NavLink href="/dashboard/analytics">Analíticas</NavLink>
             <NavLink href="/dashboard/transactions">Transacciones</NavLink>
             <NavLink href="/dashboard/wallet">Billetera</NavLink>
 
