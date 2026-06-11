@@ -266,8 +266,9 @@ export async function POST(request: NextRequest) {
 
     // 6. Llamar a Gemini con fallback a múltiples modelos
     const models = [
-      "gemini-2.0-flash",
       "gemini-2.5-flash",
+      "gemini-3.5-flash",
+      "gemini-2.0-flash",
       "gemini-2.0-flash-lite",
     ];
     let reply: string | null = null;
