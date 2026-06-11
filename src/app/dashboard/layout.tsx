@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { Chatbot } from "@/components/ui/chatbot";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -20,6 +21,7 @@ export default function DashboardLayout({
         </div>
       </main>
       <Footer />
+      <Chatbot />
     </>
   );
 }
