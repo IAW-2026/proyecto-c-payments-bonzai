@@ -43,6 +43,8 @@ Nos gustaría destacar ciertas decisiones de diseño arquitectónico y de UI/UX 
 
 ## Endpoints API
 
+### Inter-Servicios (Etapa 2)
+
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | `POST` | `/api/payments/checkout` | Iniciar pago (Buyer App) |
@@ -54,6 +56,35 @@ Nos gustaría destacar ciertas decisiones de diseño arquitectónico y de UI/UX 
 | `POST` | `/api/payments/{orderId}/resolve-dispute` | Resolver disputa (Admin) |
 | `POST` | `/api/payments/{orderId}/refund` | Reembolso (Admin) |
 | `GET` | `/api/admin/ledger` | Libro mayor (Admin) |
+
+### Control Plane (Etapa 3)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/api/control-plane/transactions` | Listar transacciones con filtros |
+| `GET` | `/api/control-plane/transactions/{id}` | Detalle de una transacción |
+| `PATCH` | `/api/control-plane/transactions/{id}/force-status` | Forzar cambio de estado |
+| `POST` | `/api/control-plane/transactions/{id}/release-funds` | Liberar fondos (escrow release) |
+| `GET` | `/api/control-plane/disputes` | Listar disputas con filtros |
+| `GET` | `/api/control-plane/wallets` | Listar wallets |
+| `GET` | `/api/control-plane/wallets/{userId}` | Detalle de wallet + actividad |
+| `POST` | `/api/control-plane/wallets/{userId}/adjust` | Ajuste manual de saldo |
+| `GET` | `/api/control-plane/checkout-sessions` | Listar checkout sessions |
+| `GET` | `/api/control-plane/checkout-sessions/{id}` | Detalle de checkout session |
+| `GET` | `/api/control-plane/health/dependencies` | Health check de servicios |
+| `GET` | `/api/control-plane/audit/integrity` | Chequeo de integridad contable |
+
+### Analytics Dashboard (Etapa 3)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/api/analytics/overview` | KPIs globales |
+| `GET` | `/api/analytics/revenue` | Revenue por período |
+| `GET` | `/api/analytics/transactions` | Transacciones agrupadas |
+| `GET` | `/api/analytics/sellers/top` | Top vendedores por revenue |
+| `GET` | `/api/analytics/disputes` | Métricas de disputas |
+| `GET` | `/api/analytics/commissions` | Comisiones por período |
+| `GET` | `/api/analytics/wallets` | Distribución de saldos |
 
 ---
 
