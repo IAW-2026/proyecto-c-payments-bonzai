@@ -98,25 +98,62 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Generate expected signature
+      // Generate expected signature candidates
       const dataIdStr = String(dataId).toLowerCase();
-      const manifest = `id:${dataIdStr};request-id:${xRequestId};ts:${ts};`;
-      
-      // Intentar calcular la firma con la clave en formato string directo
-      const hmacRaw = crypto.createHmac("sha256", webhookSecret);
-      hmacRaw.update(manifest);
-      const calculatedSignatureRaw = hmacRaw.digest("hex");
+      const eventIdStr = body?.id ? String(body.id) : "";
 
-      // Intentar calcular la firma interpretando la clave hex como un Buffer binario (común en claves de 256 bits)
-      let calculatedSignatureHex = "";
-      try {
-        if (webhookSecret.length === 64) {
-          const hmacHex = crypto.createHmac("sha256", Buffer.from(webhookSecret, "hex"));
-          hmacHex.update(manifest);
-          calculatedSignatureHex = hmacHex.digest("hex");
+      const candidates: string[] = [
+        `id:${dataIdStr};request-id:${xRequestId};ts:${ts};`,
+        `id:${dataIdStr};request-id:${xRequestId};ts:${ts}`,
+        `id:${dataIdStr};request-timestamp:${ts};`,
+        `id:${dataIdStr};request-timestamp:${ts}`,
+        `id:${dataIdStr};ts:${ts};`,
+        `id:${dataIdStr};ts:${ts}`
+      ];
+
+      if (eventIdStr) {
+        candidates.push(
+          `id:${eventIdStr};request-id:${xRequestId};ts:${ts};`,
+          `id:${eventIdStr};request-id:${xRequestId};ts:${ts}`,
+          `id:${eventIdStr};request-timestamp:${ts};`,
+          `id:${eventIdStr};request-timestamp:${ts}`
+        );
+      }
+
+      let isSignatureValid = false;
+      let matchedCandidate = "";
+      let matchedKeyType = "";
+
+      for (const candidate of candidates) {
+        // 1. Probar clave como String
+        const hmacRaw = crypto.createHmac("sha256", webhookSecret);
+        hmacRaw.update(candidate);
+        const signatureRaw = hmacRaw.digest("hex");
+
+        if (signatureRaw === v1) {
+          isSignatureValid = true;
+          matchedCandidate = candidate;
+          matchedKeyType = "Raw Key (String)";
+          break;
         }
-      } catch (err) {
-        console.warn("[webhook-debug] Error al convertir secret a hex buffer:", err);
+
+        // 2. Probar clave como Buffer (si es hex de 64 caracteres)
+        if (webhookSecret.length === 64) {
+          try {
+            const hmacHex = crypto.createHmac("sha256", Buffer.from(webhookSecret, "hex"));
+            hmacHex.update(candidate);
+            const signatureHex = hmacHex.digest("hex");
+
+            if (signatureHex === v1) {
+              isSignatureValid = true;
+              matchedCandidate = candidate;
+              matchedKeyType = "Hex Key (Buffer)";
+              break;
+            }
+          } catch {
+            // Ignorar error de conversión de hex
+          }
+        }
       }
 
       console.log("[webhook-debug] Secret length:", webhookSecret.length);
@@ -125,22 +162,12 @@ export async function POST(request: NextRequest) {
       console.log("[webhook-debug] x-request-id:", xRequestId);
       console.log("[webhook-debug] dataIdStr:", dataIdStr);
       console.log("[webhook-debug] Parsed ts:", ts, "v1:", v1);
-      console.log("[webhook-debug] Constructed manifest:", manifest);
-      console.log("[webhook-debug] Calculated (Raw Key):", calculatedSignatureRaw);
-      console.log("[webhook-debug] Calculated (Hex Key):", calculatedSignatureHex);
-
-      // Secure constant-time comparison
-      const secureCompare = (a: string, b: string) => {
-        if (!a || !b) return false;
-        const bufA = Buffer.from(a);
-        const bufB = Buffer.from(b);
-        if (bufA.length !== bufB.length) return false;
-        return crypto.timingSafeEqual(bufA, bufB);
-      };
-
-      const isSignatureValid = 
-        secureCompare(calculatedSignatureRaw, v1) || 
-        (!!calculatedSignatureHex && secureCompare(calculatedSignatureHex, v1));
+      
+      if (isSignatureValid) {
+        console.log(`[webhook-debug] ✅ Signature matched using candidate: "${matchedCandidate}" and key type: ${matchedKeyType}`);
+      } else {
+        console.warn(`[webhook-debug] ❌ None of the ${candidates.length} candidates matched.`);
+      }
 
       if (!isSignatureValid) {
         console.warn(`[webhook] ❌ Signature verification failed! Expected (v1): ${v1}`);
