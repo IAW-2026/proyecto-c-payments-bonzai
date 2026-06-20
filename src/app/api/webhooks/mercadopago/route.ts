@@ -37,11 +37,75 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: `IPN ${topic} ignorada` });
     }
 
-    // --- SIGNATURE VALIDATION BYPASSED FOR TESTING ---
-    console.log("[webhook] 🔓 Webhook signature verification bypassed for testing");
+    // Validar firma de Mercado Pago si se provee el secreto en las variables de entorno
+    const xSignature = request.headers.get("x-signature");
+    const xRequestId = request.headers.get("x-request-id");
+    const bypassHeader = request.headers.get("x-bypass-token");
+    
+    const bypassToken = process.env.MY_WEBHOOK_BYPASS_TOKEN;
+    const webhookSecret = process.env.MP_WEBHOOK_SECRET;
 
     const eventType = body?.type || body?.action;
-    const paymentId = body?.data?.id;
+    const paymentId = body?.data?.id || url.searchParams.get("data.id");
+
+    let isSignatureValid = false;
+
+    // Verificar si se aplica bypass explícito (para tests locales/mocks)
+    if (bypassToken && bypassHeader === bypassToken) {
+      console.log("[webhook] 🔓 Signature bypassed via custom bypass token");
+      isSignatureValid = true;
+    } else if (!webhookSecret) {
+      console.warn("[webhook] ⚠️ MP_WEBHOOK_SECRET is not configured. Bypassing signature verification.");
+      isSignatureValid = true;
+    } else if (!xSignature) {
+      console.error("[webhook] ❌ Missing x-signature header");
+      return NextResponse.json({ error: "Missing x-signature header" }, { status: 400 });
+    } else {
+      try {
+        // Parsear ts y v1 del header x-signature (ts=...,v1=...)
+        const parts = xSignature.split(",");
+        const tsPart = parts.find(p => p.trim().startsWith("ts="));
+        const v1Part = parts.find(p => p.trim().startsWith("v1="));
+
+        if (!tsPart || !v1Part) {
+          throw new Error("Invalid x-signature format");
+        }
+
+        const ts = tsPart.split("=")[1];
+        const v1 = v1Part.split("=")[1];
+
+        // Construir manifiesto
+        // id:<data.id>;request-id:<x-request-id>;ts:<ts>;
+        let manifest = "";
+        if (paymentId) manifest += `id:${paymentId};`;
+        if (xRequestId) manifest += `request-id:${xRequestId};`;
+        if (ts) manifest += `ts:${ts};`;
+
+        console.log("[webhook-debug] Constructed manifest:", manifest);
+
+        // Calcular HMAC-SHA256
+        const hmac = crypto.createHmac("sha256", webhookSecret);
+        hmac.update(manifest);
+        const calculatedHash = hmac.digest("hex");
+
+        console.log("[webhook-debug] Parsed v1:", v1);
+        console.log("[webhook-debug] Calculated HMAC:", calculatedHash);
+
+        // Comparación segura en tiempo constante
+        if (crypto.timingSafeEqual(Buffer.from(calculatedHash), Buffer.from(v1))) {
+          isSignatureValid = true;
+          console.log("[webhook] ✅ Signature verified successfully");
+        } else {
+          console.error("[webhook] ❌ Signature verification failed");
+        }
+      } catch (err) {
+        console.error("[webhook] Error validating signature:", err);
+      }
+    }
+
+    if (!isSignatureValid) {
+      return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
+    }
 
     if (!paymentId) {
       console.log("[webhook] No payment ID, ignoring");
