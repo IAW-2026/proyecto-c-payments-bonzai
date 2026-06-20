@@ -3,6 +3,13 @@ import { db } from "@/lib/db";
 import { preferenceClient } from "@/lib/mercadopago";
 import { auth } from "@clerk/nextjs/server";
 
+interface CheckoutOrder {
+  sellerId: string;
+  amount: number;
+  orderRef: string;
+  description?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -53,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Crear transacciones por cada orden
     const commissionRate = parseFloat(process.env.COMMISSION_RATE || "0.05");
     
-    const transactionsData = orders.map((order: any) => {
+    const transactionsData = orders.map((order: CheckoutOrder) => {
       const commissionAmount = Math.round(order.amount * commissionRate * 100) / 100;
       const netAmount = Math.round((order.amount - commissionAmount) * 100) / 100;
       
@@ -77,8 +84,10 @@ export async function POST(request: NextRequest) {
 
     // Crear la preferencia en Mercado Pago
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const buyerAppUrl =
+      process.env.BUYER_APP_URL || "https://proyecto-c-buyer-bonzai.vercel.app";
 
-    const itemsForMP = orders.map((order: any) => ({
+    const itemsForMP = orders.map((order: CheckoutOrder) => ({
       id: order.orderRef,
       title: order.description || `Orden ${order.orderRef} — Bonzai`,
       quantity: 1,
@@ -94,10 +103,9 @@ export async function POST(request: NextRequest) {
         },
         external_reference: checkoutSession.id,
         back_urls: {
-          // Nota: redirigimos a /checkout/status (implementaremos pronto)
-          success: `${appUrl}/checkout/status?payment=success&session_id=${checkoutSession.id}`,
-          failure: `${appUrl}/checkout/status?payment=failure&session_id=${checkoutSession.id}`,
-          pending: `${appUrl}/checkout/status?payment=pending&session_id=${checkoutSession.id}`,
+          success: `${buyerAppUrl}/purchases?payment=success&session_id=${checkoutSession.id}`,
+          failure: `${buyerAppUrl}/purchases?payment=failure&session_id=${checkoutSession.id}`,
+          pending: `${buyerAppUrl}/purchases?payment=pending&session_id=${checkoutSession.id}`,
         },
         auto_return: appUrl.includes("localhost") ? undefined : "approved",
         notification_url: `${appUrl}/api/webhooks/mercadopago`,
