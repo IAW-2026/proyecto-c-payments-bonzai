@@ -102,9 +102,22 @@ export async function POST(request: NextRequest) {
       const dataIdStr = String(dataId).toLowerCase();
       const manifest = `id:${dataIdStr};request-id:${xRequestId};ts:${ts};`;
       
-      const hmac = crypto.createHmac("sha256", webhookSecret);
-      hmac.update(manifest);
-      const calculatedSignature = hmac.digest("hex");
+      // Intentar calcular la firma con la clave en formato string directo
+      const hmacRaw = crypto.createHmac("sha256", webhookSecret);
+      hmacRaw.update(manifest);
+      const calculatedSignatureRaw = hmacRaw.digest("hex");
+
+      // Intentar calcular la firma interpretando la clave hex como un Buffer binario (común en claves de 256 bits)
+      let calculatedSignatureHex = "";
+      try {
+        if (webhookSecret.length === 64) {
+          const hmacHex = crypto.createHmac("sha256", Buffer.from(webhookSecret, "hex"));
+          hmacHex.update(manifest);
+          calculatedSignatureHex = hmacHex.digest("hex");
+        }
+      } catch (err) {
+        console.warn("[webhook-debug] Error al convertir secret a hex buffer:", err);
+      }
 
       console.log("[webhook-debug] Secret length:", webhookSecret.length);
       console.log("[webhook-debug] Secret start:", webhookSecret.slice(0, 3), "... end:", webhookSecret.slice(-3));
@@ -113,18 +126,24 @@ export async function POST(request: NextRequest) {
       console.log("[webhook-debug] dataIdStr:", dataIdStr);
       console.log("[webhook-debug] Parsed ts:", ts, "v1:", v1);
       console.log("[webhook-debug] Constructed manifest:", manifest);
-      console.log("[webhook-debug] Calculated Signature:", calculatedSignature);
+      console.log("[webhook-debug] Calculated (Raw Key):", calculatedSignatureRaw);
+      console.log("[webhook-debug] Calculated (Hex Key):", calculatedSignatureHex);
 
       // Secure constant-time comparison
       const secureCompare = (a: string, b: string) => {
+        if (!a || !b) return false;
         const bufA = Buffer.from(a);
         const bufB = Buffer.from(b);
         if (bufA.length !== bufB.length) return false;
         return crypto.timingSafeEqual(bufA, bufB);
       };
 
-      if (!secureCompare(calculatedSignature, v1)) {
-        console.warn(`[webhook] ❌ Signature verification failed! Calculated: ${calculatedSignature}, Expected (v1): ${v1}`);
+      const isSignatureValid = 
+        secureCompare(calculatedSignatureRaw, v1) || 
+        (!!calculatedSignatureHex && secureCompare(calculatedSignatureHex, v1));
+
+      if (!isSignatureValid) {
+        console.warn(`[webhook] ❌ Signature verification failed! Expected (v1): ${v1}`);
         return NextResponse.json(
           { success: false, error: "Unauthorized: Invalid signature" },
           { status: 401 }
