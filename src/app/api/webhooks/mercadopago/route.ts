@@ -27,10 +27,18 @@ export async function POST(request: NextRequest) {
 
     console.log("[webhook] Received:", body ? JSON.stringify(body) : "empty body");
 
+    const url = new URL(request.url);
+
+    // Bypasear notificaciones IPN heredadas (como topic=merchant_order o topic=payment)
+    // Estas no usan la firma del Webhook y no las procesamos, por lo que respondemos 200 OK para evitar reintentos y logs de error.
+    const topic = url.searchParams.get("topic") || body?.topic;
+    if (topic) {
+      console.log(`[webhook] Ignorando notificación IPN heredada (topic: ${topic}) con 200 OK`);
+      return NextResponse.json({ success: true, message: `IPN ${topic} ignorada` });
+    }
+
     // --- 1. BYPASS TOKEN VALIDATION ---
     const bypassToken = process.env.MY_WEBHOOK_BYPASS_TOKEN;
-    const url = new URL(request.url);
-    
     const requestBypassToken = 
       request.headers.get("x-bypass-token") ||
       request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ||
@@ -98,6 +106,15 @@ export async function POST(request: NextRequest) {
       hmac.update(manifest);
       const calculatedSignature = hmac.digest("hex");
 
+      console.log("[webhook-debug] Secret length:", webhookSecret.length);
+      console.log("[webhook-debug] Secret start:", webhookSecret.slice(0, 3), "... end:", webhookSecret.slice(-3));
+      console.log("[webhook-debug] x-signature:", xSignature);
+      console.log("[webhook-debug] x-request-id:", xRequestId);
+      console.log("[webhook-debug] dataIdStr:", dataIdStr);
+      console.log("[webhook-debug] Parsed ts:", ts, "v1:", v1);
+      console.log("[webhook-debug] Constructed manifest:", manifest);
+      console.log("[webhook-debug] Calculated Signature:", calculatedSignature);
+
       // Secure constant-time comparison
       const secureCompare = (a: string, b: string) => {
         const bufA = Buffer.from(a);
@@ -107,7 +124,7 @@ export async function POST(request: NextRequest) {
       };
 
       if (!secureCompare(calculatedSignature, v1)) {
-        console.warn("[webhook] ❌ Signature verification failed!");
+        console.warn(`[webhook] ❌ Signature verification failed! Calculated: ${calculatedSignature}, Expected (v1): ${v1}`);
         return NextResponse.json(
           { success: false, error: "Unauthorized: Invalid signature" },
           { status: 401 }
