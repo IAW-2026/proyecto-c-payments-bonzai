@@ -2,6 +2,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
+import { requireRole } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard",
@@ -12,39 +15,49 @@ function formatCurrency(amount: number): string {
 }
 
 export default async function AdminDashboardPage() {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  await requireRole(["payments_admin", "admin"]);
 
-  const [
-    totalTxns,
-    volumeAgg,
-    commissionsAgg,
-    activeDisputesCount,
-    pendingCount,
-    todayCompletedCount,
-  ] = await Promise.all([
-    db.transaction.count(),
-    db.transaction.aggregate({ _sum: { amount: true } }),
-    db.transaction.aggregate({ _sum: { commissionAmount: true } }),
-    db.dispute.count({ where: { resolution: null } }),
-    db.transaction.count({ where: { status: "PENDING" } }),
-    db.transaction.count({
-      where: {
-        status: "COMPLETED",
-        updatedAt: { gte: startOfToday },
-      },
-    }),
-  ]);
+  // 1. Total transactions count
+  const totalTransactions = await db.transaction.count();
 
-  const recentDisputes = await db.dispute.findMany({
-    where: { resolution: null },
-    include: { transaction: true },
-    orderBy: { createdAt: "desc" },
-    take: 5,
+  // 2. Sum of transaction amounts (total volume)
+  const volumeResult = await db.transaction.aggregate({
+    _sum: { amount: true },
+  });
+  const totalVolume = Number(volumeResult._sum.amount || 0);
+
+  // 3. Active disputes count (where resolvedAt is null)
+  const activeDisputes = await db.dispute.count({
+    where: { resolvedAt: null },
   });
 
-  const totalVolume = Number(volumeAgg._sum.amount || 0);
-  const totalCommission = Number(commissionsAgg._sum.commissionAmount || 0);
+  // 4. Sum of commission amounts (total commission generated)
+  const commissionResult = await db.transaction.aggregate({
+    _sum: { commissionAmount: true },
+  });
+  const totalCommission = Number(commissionResult._sum.commissionAmount || 0);
+
+  // 5. Pending payments
+  const pendingPayments = await db.transaction.count({
+    where: { status: "PENDING" },
+  });
+
+  // 6. Completed today (completed transactions since midnight today)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const completedToday = await db.transaction.count({
+    where: {
+      status: "COMPLETED",
+      updatedAt: { gte: today },
+    },
+  });
+
+  // 7. Recent disputes
+  const disputes = await db.dispute.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    include: { transaction: true },
+  });
 
   return (
     <div className="space-y-10 animate-fade-in">
@@ -60,12 +73,12 @@ export default async function AdminDashboardPage() {
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[
-          { title: "Transacciones totales", value: totalTxns.toString(), icon: "📊" },
+          { title: "Transacciones totales", value: totalTransactions.toString(), icon: "📊" },
           { title: "Volumen operado", value: formatCurrency(totalVolume), icon: "💰" },
-          { title: "Disputas activas", value: activeDisputesCount.toString(), icon: "⚖️" },
+          { title: "Disputas activas", value: activeDisputes.toString(), icon: "⚖️" },
           { title: "Comisiones generadas", value: formatCurrency(totalCommission), icon: "🏦" },
-          { title: "Pagos pendientes", value: pendingCount.toString(), icon: "⏳" },
-          { title: "Completados hoy", value: todayCompletedCount.toString(), icon: "✅" },
+          { title: "Pagos pendientes", value: pendingPayments.toString(), icon: "⏳" },
+          { title: "Completados hoy", value: completedToday.toString(), icon: "✅" },
         ].map((stat) => (
           <Card key={stat.title} hover>
             <CardHeader className="pb-2">
@@ -86,12 +99,12 @@ export default async function AdminDashboardPage() {
         <CardHeader>
           <div className="flex items-center gap-3">
             <span className="text-xl">⚖️</span>
-            <h2 className="text-headline-md text-on-surface">Disputas activas</h2>
+            <h2 className="text-headline-md text-on-surface">Disputas recientes</h2>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-1">
-            {recentDisputes.map((dispute, i) => (
+            {disputes.map((dispute, i) => (
               <div
                 key={dispute.id}
                 className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg px-4 py-4 transition-colors duration-200 hover:bg-surface-low ${
@@ -100,7 +113,7 @@ export default async function AdminDashboardPage() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-body-sm font-medium text-on-surface">
-                    {dispute.transaction.orderId}
+                    {dispute.transaction?.orderId || "Orden desconocida"}
                   </p>
                   <p className="text-label-sm text-on-surface-muted truncate">
                     {dispute.reason.replace(/_/g, " ")} · {dispute.id}
@@ -108,18 +121,18 @@ export default async function AdminDashboardPage() {
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                   <p className="text-body-sm font-semibold text-on-surface">
-                    {formatCurrency(Number(dispute.transaction.amount))}
+                    {formatCurrency(Number(dispute.transaction?.amount || 0))}
                   </p>
-                  <StatusBadge status="DISPUTED" size="sm" />
+                  <StatusBadge status={dispute.transaction?.status || "DISPUTED"} size="sm" />
                 </div>
               </div>
             ))}
-            {recentDisputes.length === 0 && (
-              <div className="py-8 text-center text-on-surface-muted">
-                No hay disputas activas en este momento.
-              </div>
-            )}
           </div>
+          {disputes.length === 0 && (
+            <p className="py-8 text-center text-body-sm text-on-surface-muted">
+              No se encontraron disputas registradas en el sistema.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

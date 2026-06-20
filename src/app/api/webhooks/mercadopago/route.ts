@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { paymentClient } from "@/lib/mercadopago";
+import crypto from "crypto";
 
 /**
  * POST /api/webhooks/mercadopago
@@ -17,12 +18,107 @@ import { paymentClient } from "@/lib/mercadopago";
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body: any = null;
+    try {
+      body = await request.json();
+    } catch (e) {
+      console.warn("[webhook] Could not parse request body as JSON:", e);
+    }
 
-    console.log("[webhook] Received:", JSON.stringify(body));
+    console.log("[webhook] Received:", body ? JSON.stringify(body) : "empty body");
 
-    const eventType = body.type || body.action;
-    const paymentId = body.data?.id;
+    // --- 1. BYPASS TOKEN VALIDATION ---
+    const bypassToken = process.env.MY_WEBHOOK_BYPASS_TOKEN;
+    const url = new URL(request.url);
+    
+    const requestBypassToken = 
+      request.headers.get("x-bypass-token") ||
+      request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ||
+      url.searchParams.get("bypass_token") ||
+      url.searchParams.get("secret") ||
+      body?.bypass_token ||
+      body?.secret;
+
+    const isBypassAuthorized = !!bypassToken && requestBypassToken === bypassToken;
+
+    if (isBypassAuthorized) {
+      console.log("[webhook] 🔓 Request authorized via bypass token (Simulation mode)");
+    } else {
+      // --- 2. MERCADO PAGO SIGNATURE VALIDATION ---
+      const webhookSecret = process.env.MP_WEBHOOK_SECRET;
+      if (!webhookSecret) {
+        console.error("[webhook] ❌ MP_WEBHOOK_SECRET is not configured in environment variables!");
+        return NextResponse.json(
+          { success: false, error: "Webhook signature secret is not configured" },
+          { status: 500 }
+        );
+      }
+
+      const xSignature = request.headers.get("x-signature");
+      const xRequestId = request.headers.get("x-request-id");
+      
+      let dataId = url.searchParams.get("data.id") || url.searchParams.get("id");
+      if (!dataId && body) {
+        dataId = body.data?.id || body.id;
+      }
+
+      if (!xSignature || !xRequestId || !dataId) {
+        console.warn(
+          `[webhook] ❌ Missing verification requirements. Signature: ${!!xSignature}, RequestId: ${!!xRequestId}, DataId: ${!!dataId}`
+        );
+        return NextResponse.json(
+          { success: false, error: "Unauthorized: Missing signature components" },
+          { status: 401 }
+        );
+      }
+
+      // Parse x-signature (format: ts=TIMESTAMP,v1=SIGNATURE)
+      const parts = xSignature.split(",");
+      let ts = "";
+      let v1 = "";
+      for (const part of parts) {
+        const [key, value] = part.trim().split("=");
+        if (key === "ts") ts = value;
+        if (key === "v1") v1 = value;
+      }
+
+      if (!ts || !v1) {
+        console.warn("[webhook] ❌ Invalid x-signature header format");
+        return NextResponse.json(
+          { success: false, error: "Unauthorized: Invalid signature format" },
+          { status: 401 }
+        );
+      }
+
+      // Generate expected signature
+      const dataIdStr = String(dataId).toLowerCase();
+      const manifest = `id:${dataIdStr};request-id:${xRequestId};ts:${ts};`;
+      
+      const hmac = crypto.createHmac("sha256", webhookSecret);
+      hmac.update(manifest);
+      const calculatedSignature = hmac.digest("hex");
+
+      // Secure constant-time comparison
+      const secureCompare = (a: string, b: string) => {
+        const bufA = Buffer.from(a);
+        const bufB = Buffer.from(b);
+        if (bufA.length !== bufB.length) return false;
+        return crypto.timingSafeEqual(bufA, bufB);
+      };
+
+      if (!secureCompare(calculatedSignature, v1)) {
+        console.warn("[webhook] ❌ Signature verification failed!");
+        return NextResponse.json(
+          { success: false, error: "Unauthorized: Invalid signature" },
+          { status: 401 }
+        );
+      }
+
+      console.log("[webhook] 🔒 Request signature verified successfully (Mercado Pago)");
+    }
+
+    const eventType = body?.type || body?.action;
+    const paymentId = body?.data?.id;
 
     if (!paymentId) {
       console.log("[webhook] No payment ID, ignoring");
@@ -39,7 +135,7 @@ export async function POST(request: NextRequest) {
 
       let mpPayment;
       
-      if (body.debug_mock_transaction_id) {
+      if (body?.debug_mock_transaction_id) {
         // MOCK MODE: Evita llamar a Mercado Pago para debug
         console.log("[webhook] ⚠️ RUNNING IN MOCK DEBUG MODE");
         mpPayment = {

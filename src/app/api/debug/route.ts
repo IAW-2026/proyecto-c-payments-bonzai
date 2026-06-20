@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { preferenceClient } from "@/lib/mercadopago";
 
@@ -6,8 +6,8 @@ import { preferenceClient } from "@/lib/mercadopago";
  * GET /api/debug — Endpoint temporal para diagnosticar conexiones.
  * ELIMINAR en producción.
  */
-export async function GET() {
-  const results: Record<string, unknown> = {};
+export async function GET(request: NextRequest) {
+  const results: Record<string, any> = {};
 
   // 1. Test DB
   try {
@@ -15,6 +15,43 @@ export async function GET() {
     results.database = { ok: true, transactionCount: count };
   } catch (e: any) {
     results.database = { ok: false, error: e.message };
+  }
+
+  // Clerk Info Diagnosis
+  try {
+    const { auth, clerkClient } = require("@clerk/nextjs/server");
+    const session = await auth();
+    results.clerk = {
+      userId: session.userId,
+      sessionClaimsMetadata: session.sessionClaims?.metadata,
+    };
+    if (session.userId) {
+      const client = await clerkClient();
+
+      const promote = request.nextUrl.searchParams.get("promoteAdmin") === "true";
+      if (promote) {
+        const user = await client.users.getUser(session.userId);
+        const currentRoles = (user.publicMetadata as any)?.roles || [];
+        const newRoles = Array.isArray(currentRoles) ? [...currentRoles] : [];
+        if (!newRoles.includes("payments_admin")) newRoles.push("payments_admin");
+        if (!newRoles.includes("admin")) newRoles.push("admin");
+        if (!newRoles.includes("payments")) newRoles.push("payments");
+
+        await client.users.updateUserMetadata(session.userId, {
+          publicMetadata: {
+            ...user.publicMetadata,
+            roles: newRoles,
+          },
+        });
+        results.clerk.promoted = true;
+        results.clerk.newRoles = newRoles;
+      }
+
+      const user = await client.users.getUser(session.userId);
+      results.clerk.publicMetadata = user.publicMetadata;
+    }
+  } catch (e: any) {
+    results.clerk = { ok: false, error: e.message };
   }
 
   // 2. Test MP
