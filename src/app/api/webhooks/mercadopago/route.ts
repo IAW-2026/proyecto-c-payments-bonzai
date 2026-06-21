@@ -240,20 +240,33 @@ export async function POST(request: NextRequest) {
         const sellerWebhookUrl = process.env.SELLER_WEBHOOK_URL;
         if (sellerWebhookUrl) {
           try {
-            await fetch(sellerWebhookUrl, {
+            const rawApiKey = process.env.SELLER_API_KEY || "test-key-123";
+            const sellerApiKey = rawApiKey.replace(/^['"]|['"]$/g, "");
+
+            console.log(`[webhook] Notifying Seller App at ${sellerWebhookUrl} (using key length: ${sellerApiKey.length})`);
+            
+            const response = await fetch(sellerWebhookUrl, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json",
-                "x-service-key": process.env.SELLER_API_KEY || "test-key-123"
+                "x-service-key": sellerApiKey
               },
               body: JSON.stringify({
                 buyerId: session.buyerId,
                 orderIds: session.transactions.map(t => t.orderId),
                 transactionId: session.id,
-                paymentId: String(paymentId) // Enviamos el ID de pago real de Mercado Pago solicitado por Seller
+                paymentId: String(paymentId),
+                paidAt: new Date().toISOString()
               })
             });
-            console.log(`[webhook] Notified Seller App at ${sellerWebhookUrl}`);
+
+            console.log(`[webhook] Seller App response: status=${response.status} ${response.statusText}`);
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`[webhook] Seller App notification failed: ${errorText}`);
+            } else {
+              console.log(`[webhook] Notified Seller App successfully at ${sellerWebhookUrl}`);
+            }
           } catch (err) {
             console.error(`[webhook] Error notifying Seller App:`, err);
             // No bloqueamos el flujo principal si el webhook a Seller App falla
