@@ -46,6 +46,7 @@ export function Header() {
             <NavLink href="/dashboard/analytics">Analíticas</NavLink>
             <NavLink href="/dashboard/transactions">Transacciones</NavLink>
             <NavLink href="/dashboard/wallet">Billetera</NavLink>
+            <NavLink href="/dashboard/simulator">Simulador</NavLink>
 
             <div className="ml-1 pl-2">
               <UserButton

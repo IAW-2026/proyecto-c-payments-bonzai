@@ -127,9 +127,9 @@ export async function POST(request: NextRequest) {
         // MOCK MODE: Evita llamar a Mercado Pago para debug
         console.log("[webhook] ⚠️ RUNNING IN MOCK DEBUG MODE");
         mpPayment = {
-          status: "approved",
+          status: body.debug_mock_status || "approved",
           external_reference: body.debug_mock_transaction_id,
-          transaction_amount: 1000
+          transaction_amount: body.debug_mock_amount || 1000
         };
       } else {
         try {
