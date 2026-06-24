@@ -283,6 +283,7 @@ export default function AdminAnalyticsClient({
       ITEM_DAMAGED: "Producto dañado",
       ITEM_NOT_AS_DESCRIBED: "Diferente a la descripción",
       WRONG_ITEM: "Producto equivocado",
+      QUALITY_ISSUE: "Problema de calidad",
       OTHER: "Otros motivos",
     };
 

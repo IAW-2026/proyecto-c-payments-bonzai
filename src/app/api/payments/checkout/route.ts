@@ -103,9 +103,9 @@ export async function POST(request: NextRequest) {
         },
         external_reference: checkoutSession.id,
         back_urls: {
-          success: `${buyerAppUrl}/purchases?payment=success&session_id=${checkoutSession.id}`,
-          failure: `${buyerAppUrl}/purchases?payment=failure&session_id=${checkoutSession.id}`,
-          pending: `${buyerAppUrl}/purchases?payment=pending&session_id=${checkoutSession.id}`,
+          success: `${buyerAppUrl}/?payment=success&session_id=${checkoutSession.id}`,
+          failure: `${buyerAppUrl}/?payment=failure&session_id=${checkoutSession.id}`,
+          pending: `${buyerAppUrl}/?payment=pending&session_id=${checkoutSession.id}`,
         },
         auto_return: appUrl.includes("localhost") ? undefined : "approved",
         notification_url: `${appUrl}/api/webhooks/mercadopago`,
