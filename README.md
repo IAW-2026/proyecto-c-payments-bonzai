@@ -48,8 +48,9 @@ Nos gustaría destacar ciertas decisiones de diseño arquitectónico y de UI/UX 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | `POST` | `/api/payments/checkout` | Iniciar pago (Buyer App) |
-| `POST` | `/api/payments/{checkoutSessionId}/delivered` | Notificar entrega (Shipping App) |
-| `GET` | `/api/payments/{transactionId}/status` | Estado del pago (Seller App) |
+| `POST` | `/api/payments/{orderId}/delivered` | Notificar entrega (Shipping App) |
+| `GET` | `/api/payments/{transactionId}/status` | Estado del pago por ID interno (Seller App) |
+| `GET` | `/api/payments/orders/{orderId}/status` | Estado del pago por ID de Orden (Buyer App) |
 | `POST` | `/api/webhooks/mercadopago` | Webhook Mercado Pago |
 | `GET` | `/api/payments/balance` | Consultar saldo (Seller/Admin) |
 | `POST` | `/api/payments/{orderId}/dispute` | Abrir disputa (Buyer App) |
