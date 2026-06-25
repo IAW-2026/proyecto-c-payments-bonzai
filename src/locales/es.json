@@ -1,0 +1,132 @@
+{
+  "hero": {
+    "p": "Marketplace Botánico",
+    "h1": "Pagos seguros para",
+    "desc": "Procesamos cobros, gestionamos billeteras y protegemos cada transacción del marketplace. Tu dinero, siempre seguro.",
+    "btnGoToDashboard": "Ir al dashboard",
+    "btnGetStarted": "Comenzar ahora",
+    "btnSignIn": "Iniciar sesión"
+  },
+  "features": {
+    "subtitle": "Plataforma completa",
+    "title": "Todo lo que necesitás",
+    "desc": "Una plataforma completa para gestionar el flujo financiero del marketplace.",
+    "mercadoPago": {
+      "title": "Pagos con Mercado Pago",
+      "desc": "Cobrá de forma segura con la plataforma de pagos más usada de Argentina."
+    },
+    "protectedFunds": {
+      "title": "Fondos protegidos",
+      "desc": "El dinero queda retenido hasta que se confirma la entrega. Protección para comprador y vendedor."
+    },
+    "disputes": {
+      "title": "Resolución de disputas",
+      "desc": "Sistema de reclamos con intervención de administradores para resolver conflictos."
+    }
+  },
+  "stats": {
+    "currency": "Moneda soportada",
+    "processing": "Procesamiento",
+    "commission": "Comisión",
+    "protection": "Período de protección",
+    "protectionValue": "7 días"
+  },
+  "nav": {
+    "home": "Inicio",
+    "dashboard": "Dashboard",
+    "analytics": "Analíticas",
+    "transactions": "Transacciones",
+    "wallet": "Billetera",
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "admin": "Administración",
+    "adminTitle": "Payments",
+    "adminDashboard": "Dashboard",
+    "adminAnalytics": "Analíticas",
+    "adminTransactions": "Transacciones",
+    "adminDisputes": "Disputas",
+    "adminLedger": "Libro Mayor",
+    "adminWallets": "Billeteras",
+    "adminSimulator": "Simulador"
+  },
+  "footer": {
+    "project": "Proyecto IAW 2026."
+  },
+  "dashboard": {
+    "label": "Panel de usuario",
+    "title": "Dashboard",
+    "desc": "Resumen de tu actividad financiera en Bonzai",
+    "stats": {
+      "transactions": "Transacciones",
+      "transactionsDesc": "Total procesadas",
+      "volume": "Volumen total",
+      "volumeDesc": "Monto total operado",
+      "available": "Saldo disponible",
+      "availableDesc": "Listo para retirar",
+      "held": "Saldo retenido",
+      "heldDesc": "En período de protección"
+    },
+    "sections": {
+      "recent": "Transacciones recientes",
+      "recentDesc": "Últimos movimientos de cobros y pagos"
+    },
+    "buttons": {
+      "viewAll": "Ver todas",
+      "newPayment": "Simular pago (Checkout)",
+      "withdraw": "Retirar fondos"
+    },
+    "table": {
+      "headers": {
+        "order": "Orden",
+        "role": "Rol",
+        "amount": "Monto",
+        "status": "Estado",
+        "date": "Fecha"
+      }
+    },
+    "roles": {
+      "buyer": "Comprador",
+      "seller": "Vendedor"
+    },
+    "empty": "No tenés transacciones registradas."
+  },
+  "admin": {
+    "label": "Vista general",
+    "title": "Admin Dashboard",
+    "desc": "Vista general del sistema de pagos Bonzai",
+    "stats": {
+      "totalTx": "Transacciones totales",
+      "totalVolume": "Volumen total",
+      "activeDisputes": "Disputas activas",
+      "commissions": "Comisiones cobradas",
+      "pendingPayments": "Pagos pendientes",
+      "completedToday": "Completado hoy"
+    },
+    "sections": {
+      "recentDisputes": "Disputas recientes",
+      "recentDisputesDesc": "Últimos reclamos iniciados por compradores"
+    },
+    "table": {
+      "headers": {
+        "order": "Orden",
+        "reason": "Razón",
+        "amount": "Monto",
+        "status": "Estado",
+        "date": "Fecha",
+        "actions": "Acciones"
+      }
+    },
+    "buttons": {
+      "viewAllDisputes": "Ver todas las disputas",
+      "resolve": "Resolver"
+    },
+    "emptyDisputes": "No hay disputas registradas."
+  },
+  "chatbot": {
+    "assistant": "Asistente financiero",
+    "welcome": "¡Hola! Soy **Cashi** 💸, tu asistente financiero de Bonzai.\n\nPodés preguntarme sobre tu saldo, transacciones, disputas, o cómo funciona la plataforma de pagos. ¿En qué te puedo ayudar?",
+    "placeholder": "Preguntale algo a Cashi...",
+    "send": "Enviar",
+    "error": "No pude procesar tu mensaje. Intentá de nuevo."
+  }
+}

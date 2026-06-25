@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pagination, paginateArray } from "@/components/ui/pagination";
 import { ExportButton } from "@/components/ui/export-button";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 const PAGE_SIZE = 20;
 
@@ -19,27 +20,34 @@ interface WalletsClientProps {
   initialWallets: Wallet[];
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
-}
-
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr));
-}
-
 export default function WalletsClient({ initialWallets }: WalletsClientProps) {
   const [page, setPage] = useState(1);
   const { data: wallets, totalPages } = paginateArray(initialWallets, page, PAGE_SIZE);
+  const { language } = useLanguage();
+
+  function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat(language === "es" ? "es-AR" : "en-US", { style: "currency", currency: "ARS" }).format(amount);
+  }
+
+  function formatDate(dateStr: string): string {
+    return new Intl.DateTimeFormat(language === "es" ? "es-AR" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr));
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Editorial Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-label-md text-secondary mb-2">Usuarios</p>
-          <h1 className="text-display-sm text-on-surface">Billeteras</h1>
+          <p className="text-label-md text-secondary mb-2">
+            {language === "es" ? "Usuarios" : "Users"}
+          </p>
+          <h1 className="text-display-sm text-on-surface">
+            {language === "es" ? "Billeteras" : "Wallets"}
+          </h1>
           <p className="mt-2 text-body-md text-on-surface-muted">
-            Estado financiero de todos los usuarios del sistema
+            {language === "es"
+              ? "Estado financiero de todos los usuarios del sistema"
+              : "Financial status of all system users"}
           </p>
         </div>
         <ExportButton entity="wallets" hasData={initialWallets.length > 0} />
@@ -51,11 +59,19 @@ export default function WalletsClient({ initialWallets }: WalletsClientProps) {
             <table className="w-full">
               <thead>
                 <tr>
-                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">Usuario</th>
-                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">Disponible</th>
-                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">Retenido</th>
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
+                    {language === "es" ? "Usuario" : "User"}
+                  </th>
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
+                    {language === "es" ? "Disponible" : "Available"}
+                  </th>
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
+                    {language === "es" ? "Retenido" : "Held"}
+                  </th>
                   <th className="pb-4 text-left text-label-sm text-on-surface-muted">Total</th>
-                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">Últ. actualización</th>
+                  <th className="pb-4 text-left text-label-sm text-on-surface-muted">
+                    {language === "es" ? "Últ. actualización" : "Last updated"}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -87,7 +103,9 @@ export default function WalletsClient({ initialWallets }: WalletsClientProps) {
 
           {initialWallets.length === 0 && (
             <p className="py-8 text-center text-body-sm text-on-surface-muted">
-              No se encontraron billeteras en la base de datos.
+              {language === "es"
+                ? "No se encontraron billeteras en la base de datos."
+                : "No wallets found in the database."}
             </p>
           )}
 

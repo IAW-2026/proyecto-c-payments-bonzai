@@ -78,9 +78,9 @@ export async function POST(
       data: { status: newStatus },
     });
 
-    // Ajustar wallet del vendedor
+    // Ajustar wallets
     if (resolution === "FAVOR_SELLER") {
-      // Mover de held a available
+      // Mover de held a available para el vendedor
       await db.wallet.update({
         where: { userId: transaction.sellerId },
         data: {
@@ -89,17 +89,31 @@ export async function POST(
         },
       });
     } else {
-      // Reembolso total: quitar de held
+      // Reembolso total: quitar de held del vendedor
       await db.wallet.update({
         where: { userId: transaction.sellerId },
         data: {
           heldBalance: { decrement: transaction.netAmount },
         },
       });
+
+      // Y acreditar en la billetera del comprador (disponible)
+      await db.wallet.upsert({
+        where: { userId: transaction.buyerId },
+        create: {
+          userId: transaction.buyerId,
+          availableBalance: actualRefundAmount,
+          heldBalance: 0,
+        },
+        update: {
+          availableBalance: { increment: actualRefundAmount },
+        },
+      });
     }
 
     // Registrar en el libro mayor
     if (actualRefundAmount > 0) {
+      // 1. Crédito al comprador por el monto total reembolsado
       await db.ledgerEntry.create({
         data: {
           userId: transaction.buyerId,
@@ -109,13 +123,39 @@ export async function POST(
           description: `Reembolso (${resolution}) — ${transaction.orderId}`,
         },
       });
+
+      // 2. Débito al vendedor por su monto neto original
       await db.ledgerEntry.create({
         data: {
           userId: transaction.sellerId,
           transactionId: transaction.id,
           type: "DEBIT",
-          amount: actualRefundAmount,
+          amount: transaction.netAmount,
           description: `Cargo por reembolso (${resolution}) — ${transaction.orderId}`,
+        },
+      });
+
+      // 3. Débito a la plataforma por la comisión reembolsada
+      await db.ledgerEntry.create({
+        data: {
+          userId: "platform",
+          transactionId: transaction.id,
+          type: "DEBIT",
+          amount: transaction.commissionAmount,
+          description: `Reembolso de comisión (${resolution}) — ${transaction.orderId}`,
+        },
+      });
+
+      // Descontar la comisión reembolsada de la wallet de la plataforma
+      await db.wallet.upsert({
+        where: { userId: "platform" },
+        create: {
+          userId: "platform",
+          availableBalance: -transaction.commissionAmount,
+          heldBalance: 0,
+        },
+        update: {
+          availableBalance: { decrement: transaction.commissionAmount },
         },
       });
     }

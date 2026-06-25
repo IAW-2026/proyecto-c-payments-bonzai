@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LineChart, DonutChart } from "@/components/ui/charts";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 interface TransactionData {
   id: string;
@@ -24,15 +25,16 @@ interface AnalyticsClientProps {
 
 type DateRange = "7d" | "30d" | "ytd" | "all";
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-  }).format(amount);
-}
-
 export default function AnalyticsClient({ userId, initialTransactions }: AnalyticsClientProps) {
   const [range, setRange] = useState<DateRange>("30d");
+  const { language } = useLanguage();
+
+  function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat(language === "es" ? "es-AR" : "en-US", {
+      style: "currency",
+      currency: "ARS",
+    }).format(amount);
+  }
 
   // Parse transaction dates once
   const transactions = useMemo(() => {
@@ -120,14 +122,14 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
       for (let i = days - 1; i >= 0; i--) {
         const d = new Date();
         d.setDate(now.getDate() - i);
-        const key = d.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+        const key = d.toLocaleDateString(language === "es" ? "es-AR" : "en-US", { day: "2-digit", month: "short" });
         labels.push(key);
         grouped[key] = { sales: 0, purchases: 0 };
       }
 
       filteredTransactions.forEach((t) => {
         if (t.status !== "COMPLETED") return;
-        const key = t.date.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+        const key = t.date.toLocaleDateString(language === "es" ? "es-AR" : "en-US", { day: "2-digit", month: "short" });
         if (grouped[key]) {
           if (t.sellerId === userId) grouped[key].sales += t.amount;
           if (t.buyerId === userId) grouped[key].purchases += t.amount;
@@ -151,14 +153,14 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
       for (let i = monthLimit - 1; i >= 0; i--) {
         const d = new Date();
         d.setMonth(now.getMonth() - i, 1);
-        const key = d.toLocaleDateString("es-AR", { month: "short", year: "2-digit" });
+        const key = d.toLocaleDateString(language === "es" ? "es-AR" : "en-US", { month: "short", year: "2-digit" });
         labels.push(key);
         grouped[key] = { sales: 0, purchases: 0 };
       }
 
       filteredTransactions.forEach((t) => {
         if (t.status !== "COMPLETED") return;
-        const key = t.date.toLocaleDateString("es-AR", { month: "short", year: "2-digit" });
+        const key = t.date.toLocaleDateString(language === "es" ? "es-AR" : "en-US", { month: "short", year: "2-digit" });
         if (grouped[key]) {
           if (t.sellerId === userId) grouped[key].sales += t.amount;
           if (t.buyerId === userId) grouped[key].purchases += t.amount;
@@ -171,7 +173,7 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
       value: grouped[label].sales,
       secondaryValue: grouped[label].purchases,
     }));
-  }, [filteredTransactions, range, userId, transactions]);
+  }, [filteredTransactions, range, userId, transactions, language]);
 
   // Donut status breakdown
   const statusBreakdown = useMemo(() => {
@@ -191,12 +193,12 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
     });
 
     const mapping = [
-      { key: "COMPLETED", label: "Completadas", color: "var(--success)" },
-      { key: "PENDING", label: "Pendientes", color: "var(--warning)" },
-      { key: "HELD", label: "Retenidas (Custodia)", color: "var(--secondary)" },
-      { key: "DELIVERED", label: "Entregadas", color: "var(--info)" },
-      { key: "DISPUTED", label: "En Disputa", color: "var(--error)" },
-      { key: "REFUNDED", label: "Reembolsadas", color: "var(--on-surface-muted)" },
+      { key: "COMPLETED", label: language === "es" ? "Completadas" : "Completed", color: "var(--success)" },
+      { key: "PENDING", label: language === "es" ? "Pendientes" : "Pending", color: "var(--warning)" },
+      { key: "HELD", label: language === "es" ? "Retenidas (Custodia)" : "Held (Escrow)", color: "var(--secondary)" },
+      { key: "DELIVERED", label: language === "es" ? "Entregadas" : "Delivered", color: "var(--info)" },
+      { key: "DISPUTED", label: language === "es" ? "En Disputa" : "Disputed", color: "var(--error)" },
+      { key: "REFUNDED", label: language === "es" ? "Reembolsadas" : "Refunded", color: "var(--on-surface-muted)" },
     ];
 
     return mapping
@@ -206,7 +208,7 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
         color: segColor(item.key),
       }))
       .filter((d) => d.value > 0);
-  }, [filteredTransactions]);
+  }, [filteredTransactions, language]);
 
   function segColor(status: string) {
     if (status === "COMPLETED") return "#2d6a4f"; // Success
@@ -229,20 +231,26 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
       {/* Editorial Header & Date Filters */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <p className="text-label-md text-secondary mb-2">Panel de usuario</p>
-          <h1 className="text-display-sm text-on-surface">Analíticas de Usuario</h1>
+          <p className="text-label-md text-secondary mb-2">
+            {language === "es" ? "Panel de usuario" : "User Panel"}
+          </p>
+          <h1 className="text-display-sm text-on-surface">
+            {language === "es" ? "Analíticas de Usuario" : "User Analytics"}
+          </h1>
           <p className="mt-2 text-body-md text-on-surface-muted">
-            Estadísticas y evolución de tus ventas, compras y comisiones en Bonzai.
+            {language === "es"
+              ? "Estadísticas y evolución de tus ventas, compras y comisiones en Bonzai."
+              : "Statistics and history of your sales, purchases, and commissions on Bonzai."}
           </p>
         </div>
 
         {/* Date Filters — Glassmorphic Switch */}
         <div className="flex bg-surface-mid/60 border border-outline-variant/10 p-1 rounded-full w-fit">
           {[
-            { id: "7d", label: "7 Días" },
-            { id: "30d", label: "30 Días" },
-            { id: "ytd", label: "Este Año" },
-            { id: "all", label: "Todo" },
+            { id: "7d", label: language === "es" ? "7 Días" : "7 Days" },
+            { id: "30d", label: language === "es" ? "30 Días" : "30 Days" },
+            { id: "ytd", label: language === "es" ? "Este Año" : "YTD" },
+            { id: "all", label: language === "es" ? "Todo" : "All" },
           ].map((item) => (
             <button
               key={item.id}
@@ -263,30 +271,32 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
-            title: "Ingresos (Ventas)",
+            title: language === "es" ? "Ingresos (Ventas)" : "Earnings (Sales)",
             value: formatCurrency(metrics.salesVolume),
-            subtitle: `${metrics.salesCount} ventas exitosas`,
+            subtitle: language === "es" ? `${metrics.salesCount} ventas exitosas` : `${metrics.salesCount} successful sales`,
             icon: "🌿",
             color: "text-success",
           },
           {
-            title: "Gastos (Compras)",
+            title: language === "es" ? "Gastos (Compras)" : "Expenses (Purchases)",
             value: formatCurrency(metrics.purchasesVolume),
-            subtitle: `${metrics.purchasesCount} compras exitosas`,
+            subtitle: language === "es" ? `${metrics.purchasesCount} compras exitosas` : `${metrics.purchasesCount} successful purchases`,
             icon: "🛒",
             color: "text-secondary",
           },
           {
-            title: "Comisiones Pagadas",
+            title: language === "es" ? "Comisiones Pagadas" : "Commissions Paid",
             value: formatCurrency(metrics.commissionsPaid),
-            subtitle: "Total devengado por la plataforma",
+            subtitle: language === "es" ? "Total devengado por la plataforma" : "Total accrued by the platform",
             icon: "🏦",
             color: "text-tertiary",
           },
           {
-            title: "Tasa de Éxito",
+            title: language === "es" ? "Tasa de Éxito" : "Success Rate",
             value: `${metrics.successRate.toFixed(1)}%`,
-            subtitle: `${filteredTransactions.filter((t) => t.status === "COMPLETED").length} de ${metrics.totalCount} transacciones`,
+            subtitle: language === "es"
+              ? `${filteredTransactions.filter((t) => t.status === "COMPLETED").length} de ${metrics.totalCount} transacciones`
+              : `${filteredTransactions.filter((t) => t.status === "COMPLETED").length} of ${metrics.totalCount} transactions`,
             icon: "⚡",
             color: "text-info",
           },
@@ -313,20 +323,24 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <CardTitle>Evolución de Flujos Financieros</CardTitle>
+                <CardTitle>
+                  {language === "es" ? "Evolución de Flujos Financieros" : "Financial Flows Evolution"}
+                </CardTitle>
                 <CardDescription>
-                  Ingresos por ventas (Verde oscuro) y Gastos por compras (Verde claro)
+                  {language === "es"
+                    ? "Ingresos por ventas (Verde oscuro) y Gastos por compras (Verde claro)"
+                    : "Sales revenue (Dark green) and Purchase expenses (Light green)"}
                 </CardDescription>
               </div>
               {/* Legend indicator */}
               <div className="flex items-center gap-4 text-xs font-semibold">
                 <div className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-primary" />
-                  <span className="text-on-surface-variant">Ventas</span>
+                  <span className="text-on-surface-variant">{language === "es" ? "Ventas" : "Sales"}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-secondary" />
-                  <span className="text-on-surface-variant">Compras</span>
+                  <span className="text-on-surface-variant">{language === "es" ? "Compras" : "Purchases"}</span>
                 </div>
               </div>
             </div>
@@ -339,8 +353,10 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
         {/* Donut Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Estado de Operaciones</CardTitle>
-            <CardDescription>Distribución de transacciones iniciadas en el período</CardDescription>
+            <CardTitle>{language === "es" ? "Estado de Operaciones" : "Operations Status"}</CardTitle>
+            <CardDescription>
+              {language === "es" ? "Distribución de transacciones iniciadas en el período" : "Distribution of transactions initiated in the period"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center pt-2">
             <DonutChart data={statusBreakdown} />
@@ -351,19 +367,23 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
       {/* Top Transactions */}
       <Card>
         <CardHeader>
-          <CardTitle>Operaciones Más Relevantes</CardTitle>
-          <CardDescription>Las 5 transacciones de mayor volumen en el período seleccionado</CardDescription>
+          <CardTitle>{language === "es" ? "Operaciones Más Relevantes" : "Most Relevant Operations"}</CardTitle>
+          <CardDescription>
+            {language === "es"
+              ? "Las 5 transacciones de mayor volumen en el período seleccionado"
+              : "The 5 highest volume transactions in the selected period"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-outline-variant/10">
-                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">Orden</th>
-                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">Rol</th>
-                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">Monto</th>
-                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">Estado</th>
-                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">Fecha</th>
+                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">{language === "es" ? "Orden" : "Order"}</th>
+                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">{language === "es" ? "Rol" : "Role"}</th>
+                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">{language === "es" ? "Monto" : "Amount"}</th>
+                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">{language === "es" ? "Estado" : "Status"}</th>
+                  <th className="pb-3 text-left text-label-sm text-on-surface-muted">{language === "es" ? "Fecha" : "Date"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
@@ -380,17 +400,17 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
                               : "bg-secondary-container/15 text-secondary"
                           }`}
                         >
-                          {isSeller ? "Vendedor" : "Comprador"}
+                          {isSeller ? (language === "es" ? "Vendedor" : "Seller") : (language === "es" ? "Comprador" : "Buyer")}
                         </span>
                       </td>
                       <td className="py-4 text-body-sm font-semibold text-on-surface">
                         {formatCurrency(t.amount)}
                       </td>
                       <td className="py-4">
-                        <StatusBadge status={t.status as any} size="sm" />
+                        <StatusBadge status={t.status as any} size="sm" locale={language} />
                       </td>
                       <td className="py-4 text-body-sm text-on-surface-muted">
-                        {t.date.toLocaleDateString("es-AR", {
+                        {t.date.toLocaleDateString(language === "es" ? "es-AR" : "en-US", {
                           day: "2-digit",
                           month: "short",
                           hour: "2-digit",
@@ -403,7 +423,7 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
                 {topTransactions.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-on-surface-muted">
-                      No hay transacciones registradas en este período.
+                      {language === "es" ? "No hay transacciones registradas en este período." : "No registered transactions in this period."}
                     </td>
                   </tr>
                 )}
@@ -415,3 +435,4 @@ export default function AnalyticsClient({ userId, initialTransactions }: Analyti
     </div>
   );
 }
+

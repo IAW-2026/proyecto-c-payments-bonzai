@@ -4,6 +4,8 @@ import { clsx } from "clsx";
 import { useState, useRef, useEffect } from "react";
 import { ToastContainer, useToast } from "./toast";
 
+import { useLanguage } from "@/lib/contexts/LanguageContext";
+
 interface ExportButtonProps {
   entity: string;
   filters?: Record<string, string>;
@@ -34,6 +36,7 @@ export function ExportButton({ entity, filters = {}, hasData = true, className }
   const [loading, setLoading] = useState(false);
   const { toasts, addToast, dismissToast } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { language } = useLanguage();
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -48,7 +51,12 @@ export function ExportButton({ entity, filters = {}, hasData = true, className }
 
   async function handleExport(format: "csv" | "xlsx") {
     if (!hasData) {
-      addToast("No hay contenido o registros para exportar en este momento.", "error");
+      addToast(
+        language === "es"
+          ? "No hay contenido o registros para exportar en este momento."
+          : "No content or records to export at this time.",
+        "error"
+      );
       setOpen(false);
       return;
     }
@@ -76,7 +84,12 @@ export function ExportButton({ entity, filters = {}, hasData = true, className }
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Export error:", err);
-      addToast("Hubo un error al generar el archivo de exportación.", "error");
+      addToast(
+        language === "es"
+          ? "Hubo un error al generar el archivo de exportación."
+          : "There was an error generating the export file.",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -98,7 +111,7 @@ export function ExportButton({ entity, filters = {}, hasData = true, className }
         ) : (
           <DownloadIcon className="h-4 w-4" />
         )}
-        Exportar
+        {language === "es" ? "Exportar" : "Export"}
       </button>
 
       {open && (
@@ -108,14 +121,14 @@ export function ExportButton({ entity, filters = {}, hasData = true, className }
             className="flex w-full items-center gap-3 px-4 py-2.5 text-body-sm text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
           >
             <span className="text-base">📄</span>
-            Exportar como CSV
+            {language === "es" ? "Exportar como CSV" : "Export as CSV"}
           </button>
           <button
             onClick={() => handleExport("xlsx")}
             className="flex w-full items-center gap-3 px-4 py-2.5 text-body-sm text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
           >
             <span className="text-base">📊</span>
-            Exportar como Excel
+            {language === "es" ? "Exportar como Excel" : "Export as Excel"}
           </button>
         </div>
       )}

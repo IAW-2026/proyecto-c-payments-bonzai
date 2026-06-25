@@ -71,15 +71,31 @@ export async function GET(
           : null,
         createdAt: t.createdAt.toISOString(),
       })),
-      payments: session.payments.map((p: any) => ({
-        id: p.id,
-        provider: p.provider,
-        providerStatus: p.providerStatus,
-        externalId: p.externalId,
-        preferenceId: p.preferenceId,
-        checkoutUrl: p.checkoutUrl,
-        createdAt: p.createdAt.toISOString(),
-      })),
+      payments: session.payments.map((p: any) => {
+        let checkoutUrl = p.checkoutUrl;
+        if (checkoutUrl) {
+          try {
+            const parsed = new URL(checkoutUrl);
+            if (parsed.hostname.includes("mercadopago.com")) {
+              parsed.hostname = "sandbox.mercadopago.com.ar";
+              checkoutUrl = parsed.toString();
+            }
+          } catch {
+            checkoutUrl = checkoutUrl
+              .replace("www.mercadopago.com.ar", "sandbox.mercadopago.com.ar")
+              .replace("www.mercadopago.com", "sandbox.mercadopago.com.ar");
+          }
+        }
+        return {
+          id: p.id,
+          provider: p.provider,
+          providerStatus: p.providerStatus,
+          externalId: p.externalId,
+          preferenceId: p.preferenceId,
+          checkoutUrl,
+          createdAt: p.createdAt.toISOString(),
+        };
+      }),
       summary: {
         transactionCount: session.transactions.length,
         uniqueSellers: [

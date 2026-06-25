@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 interface NavItem {
   href: string;
@@ -17,13 +18,14 @@ interface MobileSidebarProps {
 export function MobileSidebar({ navItems }: MobileSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const { language, setLanguage, t } = useLanguage();
 
   return (
     <>
       {/* Mobile Top Bar */}
       <div className="lg:hidden flex items-center justify-between bg-surface-mid px-4 py-3 border-b border-surface-high z-30 sticky top-0">
         <h2 className="text-headline-sm text-on-surface font-semibold">
-          Payments Admin
+          {t("nav.adminTitle")} Admin
         </h2>
         <button
           onClick={() => setIsOpen(true)}
@@ -62,7 +64,7 @@ export function MobileSidebar({ navItems }: MobileSidebarProps) {
       >
         <div className="flex items-center justify-between px-6 py-6 border-b border-surface-high">
           <div>
-            <p className="text-label-md text-secondary">Administración</p>
+            <p className="text-label-md text-secondary">{t("nav.admin")}</p>
             <h2 className="text-headline-md text-on-surface">Menu</h2>
           </div>
           <button
@@ -106,7 +108,9 @@ export function MobileSidebar({ navItems }: MobileSidebarProps) {
             );
           })}
         </nav>
+
       </div>
     </>
   );
 }
+

@@ -48,11 +48,24 @@ export async function GET(
     });
 
     // Ledger entries del usuario
-    const recentLedger = await db.ledgerEntry.findMany({
+    const recentLedgerRaw = await db.ledgerEntry.findMany({
       where: { userId },
+      include: {
+        transaction: true,
+      },
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: 100,
     });
+
+    const recentLedger = recentLedgerRaw
+      .filter((e: any) => {
+        const isExternalPaymentDebit =
+          e.type === "DEBIT" &&
+          e.transaction.buyerId === userId &&
+          e.transaction.id !== "system-adjustments-txn";
+        return !isExternalPaymentDebit;
+      })
+      .slice(0, 20);
 
     // Stats agregados
     const transactionStats = await db.transaction.aggregate({

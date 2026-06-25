@@ -28,6 +28,7 @@ export const disputeSchema = z.object({
     "ITEM_DAMAGED",
     "ITEM_NOT_AS_DESCRIBED",
     "WRONG_ITEM",
+    "QUALITY_ISSUE",
     "OTHER",
   ]),
   description: z.string().optional(),

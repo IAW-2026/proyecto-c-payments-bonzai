@@ -1,0 +1,132 @@
+{
+  "hero": {
+    "p": "Botanical Marketplace",
+    "h1": "Secure payments for",
+    "desc": "We process charges, manage wallets, and protect every transaction on the marketplace. Your money, always safe.",
+    "btnGoToDashboard": "Go to dashboard",
+    "btnGetStarted": "Get started",
+    "btnSignIn": "Sign in"
+  },
+  "features": {
+    "subtitle": "Complete platform",
+    "title": "Everything you need",
+    "desc": "A complete platform to manage the financial flow of the marketplace.",
+    "mercadoPago": {
+      "title": "Payments with Mercado Pago",
+      "desc": "Collect securely with the most used payment platform in Argentina."
+    },
+    "protectedFunds": {
+      "title": "Protected funds",
+      "desc": "Money is held until delivery is confirmed. Protection for both buyer and seller."
+    },
+    "disputes": {
+      "title": "Dispute resolution",
+      "desc": "Claims system with admin intervention to resolve conflicts."
+    }
+  },
+  "stats": {
+    "currency": "Supported currency",
+    "processing": "Processing",
+    "commission": "Commission",
+    "protection": "Protection period",
+    "protectionValue": "7 days"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "analytics": "Analytics",
+    "transactions": "Transactions",
+    "wallet": "Wallet",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "admin": "Administration",
+    "adminTitle": "Payments",
+    "adminDashboard": "Dashboard",
+    "adminAnalytics": "Analytics",
+    "adminTransactions": "Transactions",
+    "adminDisputes": "Disputes",
+    "adminLedger": "Ledger",
+    "adminWallets": "Wallets",
+    "adminSimulator": "Simulator"
+  },
+  "footer": {
+    "project": "IAW 2026 Project."
+  },
+  "dashboard": {
+    "label": "User Panel",
+    "title": "Dashboard",
+    "desc": "Summary of your financial activity on Bonzai",
+    "stats": {
+      "transactions": "Transactions",
+      "transactionsDesc": "Total processed",
+      "volume": "Total volume",
+      "volumeDesc": "Total operated amount",
+      "available": "Available balance",
+      "availableDesc": "Ready to withdraw",
+      "held": "Held balance",
+      "heldDesc": "In protection period"
+    },
+    "sections": {
+      "recent": "Recent Transactions",
+      "recentDesc": "Latest payout and payment movements"
+    },
+    "buttons": {
+      "viewAll": "View all",
+      "newPayment": "Simulate payment (Checkout)",
+      "withdraw": "Withdraw funds"
+    },
+    "table": {
+      "headers": {
+        "order": "Order",
+        "role": "Role",
+        "amount": "Amount",
+        "status": "Status",
+        "date": "Date"
+      }
+    },
+    "roles": {
+      "buyer": "Buyer",
+      "seller": "Seller"
+    },
+    "empty": "You do not have any registered transactions."
+  },
+  "admin": {
+    "label": "Overview",
+    "title": "Admin Dashboard",
+    "desc": "Overview of the Bonzai payments system",
+    "stats": {
+      "totalTx": "Total transactions",
+      "totalVolume": "Total volume",
+      "activeDisputes": "Active disputes",
+      "commissions": "Commissions collected",
+      "pendingPayments": "Pending payments",
+      "completedToday": "Completed today"
+    },
+    "sections": {
+      "recentDisputes": "Recent Disputes",
+      "recentDisputesDesc": "Latest claims initiated by buyers"
+    },
+    "table": {
+      "headers": {
+        "order": "Order",
+        "reason": "Reason",
+        "amount": "Amount",
+        "status": "Status",
+        "date": "Date",
+        "actions": "Actions"
+      }
+    },
+    "buttons": {
+      "viewAllDisputes": "View all disputes",
+      "resolve": "Resolve"
+    },
+    "emptyDisputes": "No registered disputes."
+  },
+  "chatbot": {
+    "assistant": "Financial Assistant",
+    "welcome": "Hello! I am **Cashi** 💸, your Bonzai financial assistant.\n\nYou can ask me about your balance, transactions, disputes, or how the payment platform works. How can I help you?",
+    "placeholder": "Ask Cashi something...",
+    "send": "Send",
+    "error": "Could not process your message. Try again."
+  }
+}

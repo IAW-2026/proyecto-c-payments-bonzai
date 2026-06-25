@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { esES, enUS } from "@clerk/localizations";
+import { cookies } from "next/headers";
+import { LanguageProvider } from "@/lib/contexts/LanguageContext";
 import { Newsreader, Manrope } from "next/font/google";
 import "./globals.css";
 
@@ -33,21 +36,27 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("locale")?.value || "en";
+
   return (
-    <ClerkProvider>
+    <ClerkProvider localization={locale === "es" ? esES : enUS}>
       <html
-        lang="es"
+        lang={locale}
         className={`${newsreader.variable} ${manrope.variable} h-full`}
       >
         <body className="min-h-full flex flex-col">
-          {children}
+          <LanguageProvider initialLanguage={locale}>
+            {children}
+          </LanguageProvider>
         </body>
       </html>
     </ClerkProvider>
   );
 }
+

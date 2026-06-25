@@ -42,7 +42,7 @@ export async function POST(
       data: { status: "REFUNDED" },
     });
 
-    // Ajustar wallet del vendedor
+    // Ajustar wallets
     await db.wallet.update({
       where: { userId: transaction.sellerId },
       data: {
@@ -50,7 +50,20 @@ export async function POST(
       },
     });
 
+    await db.wallet.upsert({
+      where: { userId: transaction.buyerId },
+      create: {
+        userId: transaction.buyerId,
+        availableBalance: transaction.amount,
+        heldBalance: 0,
+      },
+      update: {
+        availableBalance: { increment: transaction.amount },
+      },
+    });
+
     // Registrar en libro mayor
+    // 1. Crédito al comprador por el monto total reembolsado
     await db.ledgerEntry.create({
       data: {
         userId: transaction.buyerId,
@@ -60,6 +73,8 @@ export async function POST(
         description: `Reembolso completo — ${transaction.orderId}`,
       },
     });
+
+    // 2. Débito al vendedor por su monto neto original
     await db.ledgerEntry.create({
       data: {
         userId: transaction.sellerId,
@@ -67,6 +82,30 @@ export async function POST(
         type: "DEBIT",
         amount: transaction.netAmount,
         description: `Cargo por reembolso — ${transaction.orderId}`,
+      },
+    });
+
+    // 3. Débito a la plataforma por la comisión reembolsada
+    await db.ledgerEntry.create({
+      data: {
+        userId: "platform",
+        transactionId: transaction.id,
+        type: "DEBIT",
+        amount: transaction.commissionAmount,
+        description: `Reembolso de comisión — ${transaction.orderId}`,
+      },
+    });
+
+    // Descontar la comisión reembolsada de la wallet de la plataforma
+    await db.wallet.upsert({
+      where: { userId: "platform" },
+      create: {
+        userId: "platform",
+        availableBalance: -transaction.commissionAmount,
+        heldBalance: 0,
+      },
+      update: {
+        availableBalance: { decrement: transaction.commissionAmount },
       },
     });
 

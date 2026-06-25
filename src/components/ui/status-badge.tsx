@@ -3,6 +3,7 @@ import { clsx } from "clsx";
 interface StatusBadgeProps {
   status: string;
   size?: "sm" | "md";
+  locale?: string;
 }
 
 const statusConfig: Record<string, { label: string; dotClass: string; bgClass: string; textClass: string }> = {
@@ -44,13 +45,35 @@ const statusConfig: Record<string, { label: string; dotClass: string; bgClass: s
   },
 };
 
-export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
+const statusTranslations: Record<string, Record<string, string>> = {
+  en: {
+    PENDING: "Pending",
+    HELD: "Held",
+    DELIVERED: "Delivered",
+    DISPUTED: "Disputed",
+    COMPLETED: "Completed",
+    REFUNDED: "Refunded",
+  },
+  es: {
+    PENDING: "Pendiente",
+    HELD: "Retenido",
+    DELIVERED: "Entregado",
+    DISPUTED: "En disputa",
+    COMPLETED: "Completado",
+    REFUNDED: "Reembolsado",
+  },
+};
+
+export function StatusBadge({ status, size = "md", locale = "en" }: StatusBadgeProps) {
   const config = statusConfig[status] || {
     label: status,
     dotClass: "bg-on-surface-muted",
     bgClass: "bg-surface-mid",
     textClass: "text-on-surface-variant",
   };
+
+  const currentLocale = locale === "es" ? "es" : "en";
+  const label = statusTranslations[currentLocale][status] || config.label;
 
   return (
     <span
@@ -70,7 +93,8 @@ export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
           config.dotClass
         )}
       />
-      {config.label}
+      {label}
     </span>
   );
 }
+

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAuth, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 /* Bonsai tree SVG — placeholder for the real brand icon */
 function BonsaiIcon({ className = "" }: { className?: string }) {
@@ -27,6 +28,7 @@ function BonsaiIcon({ className = "" }: { className?: string }) {
 
 export function Header() {
   const { isSignedIn, isLoaded } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
 
   return (
     <header className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 animate-slide-up">
@@ -35,17 +37,17 @@ export function Header() {
         <Link
           href="/"
           className="flex items-center justify-center rounded-full p-2.5 text-primary transition-colors duration-300 hover:bg-surface-low"
-          aria-label="Inicio"
+          aria-label={t("nav.home")}
         >
           <BonsaiIcon className="h-6 w-6" />
         </Link>
 
         {isLoaded && isSignedIn ? (
           <>
-            <NavLink href="/dashboard">Dashboard</NavLink>
-            <NavLink href="/dashboard/analytics">Analíticas</NavLink>
-            <NavLink href="/dashboard/transactions">Transacciones</NavLink>
-            <NavLink href="/dashboard/wallet">Billetera</NavLink>
+            <NavLink href="/dashboard">{t("nav.dashboard")}</NavLink>
+            <NavLink href="/dashboard/analytics">{t("nav.analytics")}</NavLink>
+            <NavLink href="/dashboard/transactions">{t("nav.transactions")}</NavLink>
+            <NavLink href="/dashboard/wallet">{t("nav.wallet")}</NavLink>
 
             <div className="ml-1 pl-2">
               <UserButton
@@ -61,12 +63,12 @@ export function Header() {
           <>
             <Link href="/sign-in">
               <Button variant="ghost" size="sm">
-                Iniciar sesión
+                {t("nav.signIn")}
               </Button>
             </Link>
             <Link href="/sign-up">
               <Button variant="primary" size="sm">
-                Registrarse
+                {t("nav.signUp")}
               </Button>
             </Link>
           </>
@@ -92,3 +94,4 @@ function NavLink({
     </Link>
   );
 }
+
