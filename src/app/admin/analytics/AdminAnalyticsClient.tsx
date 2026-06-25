@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { BarChart, DonutChart } from "@/components/ui/charts";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 interface TransactionData {
   id: string;
@@ -43,20 +44,21 @@ interface AdminAnalyticsClientProps {
 
 type DateRange = "7d" | "30d" | "90d" | "all";
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 export default function AdminAnalyticsClient({
   transactions,
   disputes,
   wallets,
 }: AdminAnalyticsClientProps) {
   const [range, setRange] = useState<DateRange>("30d");
+  const { language } = useLanguage();
+
+  function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat(language === "es" ? "es-AR" : "en-US", {
+      style: "currency",
+      currency: "ARS",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }
 
   // Parse dates once
   const txParsed = useMemo(() => {
@@ -166,6 +168,7 @@ export default function AdminAnalyticsClient({
   const chartData = useMemo(() => {
     const grouped: { [key: string]: { gmv: number; commission: number } } = {};
     const labels: string[] = [];
+    const localeStr = language === "es" ? "es-AR" : "en-US";
 
     const now = new Date();
 
@@ -174,14 +177,14 @@ export default function AdminAnalyticsClient({
       for (let i = days - 1; i >= 0; i--) {
         const d = new Date();
         d.setDate(now.getDate() - i);
-        const key = d.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+        const key = d.toLocaleDateString(localeStr, { day: "2-digit", month: "short" });
         labels.push(key);
         grouped[key] = { gmv: 0, commission: 0 };
       }
 
       filteredTxs.forEach((t) => {
         if (t.status === "PENDING" || t.status === "REFUNDED") return;
-        const key = t.date.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+        const key = t.date.toLocaleDateString(localeStr, { day: "2-digit", month: "short" });
         if (grouped[key]) {
           grouped[key].gmv += t.amount;
           grouped[key].commission += t.commissionAmount;
@@ -192,7 +195,7 @@ export default function AdminAnalyticsClient({
       for (let i = 12; i >= 0; i--) {
         const d = new Date();
         d.setDate(now.getDate() - i * 7);
-        const key = `Sem -${i}`;
+        const key = language === "es" ? `Sem -${i}` : `Wk -${i}`;
         labels.push(key);
         grouped[key] = { gmv: 0, commission: 0 };
       }
@@ -224,14 +227,14 @@ export default function AdminAnalyticsClient({
       for (let i = monthLimit - 1; i >= 0; i--) {
         const d = new Date();
         d.setMonth(now.getMonth() - i, 1);
-        const key = d.toLocaleDateString("es-AR", { month: "short", year: "2-digit" });
+        const key = d.toLocaleDateString(localeStr, { month: "short", year: "2-digit" });
         labels.push(key);
         grouped[key] = { gmv: 0, commission: 0 };
       }
 
       filteredTxs.forEach((t) => {
         if (t.status === "PENDING" || t.status === "REFUNDED") return;
-        const key = t.date.toLocaleDateString("es-AR", { month: "short", year: "2-digit" });
+        const key = t.date.toLocaleDateString(localeStr, { month: "short", year: "2-digit" });
         if (grouped[key]) {
           grouped[key].gmv += t.amount;
           grouped[key].commission += t.commissionAmount;
@@ -244,7 +247,7 @@ export default function AdminAnalyticsClient({
       value: grouped[label].gmv,
       secondaryValue: grouped[label].commission,
     }));
-  }, [filteredTxs, range, txParsed]);
+  }, [filteredTxs, range, txParsed, language]);
 
   // Disputes breakdown for Donut Chart
   const disputeBreakdown = useMemo(() => {
@@ -263,13 +266,25 @@ export default function AdminAnalyticsClient({
     });
 
     const dataset = [
-      { label: "En Trámite (Abiertas)", value: openCount, color: "var(--warning)" },
-      { label: "Favor Comprador", value: favorBuyerCount, color: "var(--primary)" },
-      { label: "Favor Vendedor", value: favorSellerCount, color: "var(--secondary)" },
+      {
+        label: language === "es" ? "En Trámite (Abiertas)" : "In Progress (Open)",
+        value: openCount,
+        color: "var(--warning)",
+      },
+      {
+        label: language === "es" ? "Favor Comprador" : "Favor Buyer",
+        value: favorBuyerCount,
+        color: "var(--primary)",
+      },
+      {
+        label: language === "es" ? "Favor Vendedor" : "Favor Seller",
+        value: favorSellerCount,
+        color: "var(--secondary)",
+      },
     ];
 
     return dataset.filter((d) => d.value > 0);
-  }, [filteredDs]);
+  }, [filteredDs, language]);
 
   // Dispute Reasons breakdown (Top reasons list)
   const disputeReasons = useMemo(() => {
@@ -279,12 +294,12 @@ export default function AdminAnalyticsClient({
     });
 
     const mapping: { [key: string]: string } = {
-      ITEM_NOT_RECEIVED: "Producto no recibido",
-      ITEM_DAMAGED: "Producto dañado",
-      ITEM_NOT_AS_DESCRIBED: "Diferente a la descripción",
-      WRONG_ITEM: "Producto equivocado",
-      QUALITY_ISSUE: "Problema de calidad",
-      OTHER: "Otros motivos",
+      ITEM_NOT_RECEIVED: language === "es" ? "Producto no recibido" : "Item not received",
+      ITEM_DAMAGED: language === "es" ? "Producto dañado" : "Item damaged",
+      ITEM_NOT_AS_DESCRIBED: language === "es" ? "Diferente a la descripción" : "Not as described",
+      WRONG_ITEM: language === "es" ? "Producto equivocado" : "Wrong item",
+      QUALITY_ISSUE: language === "es" ? "Problema de calidad" : "Quality issue",
+      OTHER: language === "es" ? "Otros motivos" : "Other reasons",
     };
 
     return Object.entries(counts)
@@ -293,27 +308,33 @@ export default function AdminAnalyticsClient({
         count,
       }))
       .sort((a, b) => b.count - a.count);
-  }, [filteredDs]);
+  }, [filteredDs, language]);
 
   return (
     <div className="space-y-10 animate-fade-in">
       {/* Editorial Header & Filters */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <p className="text-label-md text-secondary mb-2">Vista general de plataforma</p>
-          <h1 className="text-display-sm text-on-surface">Analíticas de Administrador</h1>
+          <p className="text-label-md text-secondary mb-2">
+            {language === "es" ? "Vista general de plataforma" : "Platform Overview"}
+          </p>
+          <h1 className="text-display-sm text-on-surface">
+            {language === "es" ? "Analíticas de Administrador" : "Admin Analytics"}
+          </h1>
           <p className="mt-2 text-body-md text-on-surface-muted">
-            Métricas de transacciones, comisiones de plataforma, disputas y balances de billeteras.
+            {language === "es"
+              ? "Métricas de transacciones, comisiones de plataforma, disputas y balances de billeteras."
+              : "Transaction metrics, platform commissions, disputes, and wallet balances."}
           </p>
         </div>
 
         {/* Date Filters — Glassmorphic Switch */}
         <div className="flex bg-surface-mid/60 border border-outline-variant/10 p-1 rounded-full w-fit shrink-0">
           {[
-            { id: "7d", label: "7 Días" },
-            { id: "30d", label: "30 Días" },
-            { id: "90d", label: "90 Días" },
-            { id: "all", label: "Todo" },
+            { id: "7d", label: language === "es" ? "7 Días" : "7 Days" },
+            { id: "30d", label: language === "es" ? "30 Días" : "30 Days" },
+            { id: "90d", label: language === "es" ? "90 Días" : "90 Days" },
+            { id: "all", label: language === "es" ? "Todo" : "All" },
           ].map((item) => (
             <button
               key={item.id}
@@ -334,33 +355,33 @@ export default function AdminAnalyticsClient({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {[
           {
-            title: "Volumen Total (GMV)",
+            title: language === "es" ? "Volumen Total (GMV)" : "Total Volume (GMV)",
             value: formatCurrency(metrics.gmv),
-            subtitle: `${metrics.completedCount} pagos completados`,
+            subtitle: language === "es" ? `${metrics.completedCount} pagos completados` : `${metrics.completedCount} completed payments`,
             icon: "💳",
           },
           {
-            title: "Ingresos Netos (Comisiones)",
+            title: language === "es" ? "Ingresos Netos (Comisiones)" : "Net Income (Commissions)",
             value: formatCurrency(metrics.commissions),
-            subtitle: "Comisiones devengadas",
+            subtitle: language === "es" ? "Comisiones devengadas" : "Accrued commissions",
             icon: "🏦",
           },
           {
-            title: "Tasa de Disputas",
+            title: language === "es" ? "Tasa de Disputas" : "Dispute Rate",
             value: `${metrics.disputeRate.toFixed(1)}%`,
-            subtitle: `${metrics.disputeCount} disputas registradas`,
+            subtitle: language === "es" ? `${metrics.disputeCount} disputas registradas` : `${metrics.disputeCount} disputes registered`,
             icon: "⚖️",
           },
           {
-            title: "Fondos en Custodia",
+            title: language === "es" ? "Fondos en Custodia" : "Funds in Escrow",
             value: formatCurrency(walletStats.heldTotal),
-            subtitle: "Saldo retenido total",
+            subtitle: language === "es" ? "Saldo retenido total" : "Total held balance",
             icon: "🔒",
           },
           {
-            title: "Fondos Disponibles",
+            title: language === "es" ? "Fondos Disponibles" : "Available Funds",
             value: formatCurrency(walletStats.availableTotal),
-            subtitle: "Saldo listo para retiro",
+            subtitle: language === "es" ? "Saldo listo para retiro" : "Balance ready for withdrawal",
             icon: "✅",
           },
         ].map((stat, i) => (
@@ -386,19 +407,27 @@ export default function AdminAnalyticsClient({
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <CardTitle>Volumen de Negocios y Comisiones</CardTitle>
+                <CardTitle>
+                  {language === "es" ? "Volumen de Negocios y Comisiones" : "Business Volume and Commissions"}
+                </CardTitle>
                 <CardDescription>
-                  Comparativa del GMV procesado y las comisiones recaudadas por la plataforma
+                  {language === "es"
+                    ? "Comparativa del GMV procesado y las comisiones recaudadas por la plataforma"
+                    : "Comparison of processed GMV and commissions collected by the platform"}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-4 text-xs font-semibold">
                 <div className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-primary-container" />
-                  <span className="text-on-surface-variant">GMV de Transacciones</span>
+                  <span className="text-on-surface-variant">
+                    {language === "es" ? "GMV de Transacciones" : "Transaction GMV"}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-secondary" />
-                  <span className="text-on-surface-variant">Comisiones Plataforma</span>
+                  <span className="text-on-surface-variant">
+                    {language === "es" ? "Comisiones Plataforma" : "Platform Commissions"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -411,15 +440,19 @@ export default function AdminAnalyticsClient({
         {/* Dispute Status donut chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Resolución de Disputas</CardTitle>
-            <CardDescription>Distribución de disputas iniciadas en este período</CardDescription>
+            <CardTitle>{language === "es" ? "Resolución de Disputas" : "Disputes Resolution"}</CardTitle>
+            <CardDescription>
+              {language === "es" ? "Distribución de disputas iniciadas en este período" : "Distribution of disputes initiated in this period"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center pt-2">
             {disputeBreakdown.length > 0 ? (
               <DonutChart data={disputeBreakdown} />
             ) : (
               <div className="flex h-56 items-center justify-center text-center">
-                <p className="text-body-sm text-on-surface-muted">No se registraron disputas en el período.</p>
+                <p className="text-body-sm text-on-surface-muted">
+                  {language === "es" ? "No se registraron disputas en el período." : "No disputes registered in the period."}
+                </p>
               </div>
             )}
           </CardContent>
@@ -431,8 +464,10 @@ export default function AdminAnalyticsClient({
         {/* Top Sellers */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Vendedores</CardTitle>
-            <CardDescription>Usuarios con mayor volumen de ventas completadas</CardDescription>
+            <CardTitle>{language === "es" ? "Top Vendedores" : "Top Sellers"}</CardTitle>
+            <CardDescription>
+              {language === "es" ? "Usuarios con mayor volumen de ventas completadas" : "Users with the highest volume of completed sales"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -452,7 +487,9 @@ export default function AdminAnalyticsClient({
                 </div>
               ))}
               {leaderboards.topSellers.length === 0 && (
-                <p className="py-4 text-center text-on-surface-muted text-body-sm">No hay datos de ventas.</p>
+                <p className="py-4 text-center text-on-surface-muted text-body-sm">
+                  {language === "es" ? "No hay datos de ventas." : "No sales data."}
+                </p>
               )}
             </div>
           </CardContent>
@@ -461,8 +498,10 @@ export default function AdminAnalyticsClient({
         {/* Top Buyers */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Compradores</CardTitle>
-            <CardDescription>Usuarios con mayor volumen de compras completadas</CardDescription>
+            <CardTitle>{language === "es" ? "Top Compradores" : "Top Buyers"}</CardTitle>
+            <CardDescription>
+              {language === "es" ? "Usuarios con mayor volumen de compras completadas" : "Users with the highest volume of completed purchases"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -482,7 +521,9 @@ export default function AdminAnalyticsClient({
                 </div>
               ))}
               {leaderboards.topBuyers.length === 0 && (
-                <p className="py-4 text-center text-on-surface-muted text-body-sm">No hay datos de compras.</p>
+                <p className="py-4 text-center text-on-surface-muted text-body-sm">
+                  {language === "es" ? "No hay datos de compras." : "No purchases data."}
+                </p>
               )}
             </div>
           </CardContent>
@@ -491,8 +532,10 @@ export default function AdminAnalyticsClient({
         {/* Dispute Reasons List */}
         <Card>
           <CardHeader>
-            <CardTitle>Motivos de Disputa</CardTitle>
-            <CardDescription>Razones más comunes declaradas por compradores</CardDescription>
+            <CardTitle>{language === "es" ? "Motivos de Disputa" : "Dispute Reasons"}</CardTitle>
+            <CardDescription>
+              {language === "es" ? "Razones más comunes declaradas por compradores" : "Most common reasons reported by buyers"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -500,13 +543,15 @@ export default function AdminAnalyticsClient({
                 <div key={i} className="flex items-center justify-between text-body-sm">
                   <span className="text-on-surface-variant font-medium">{reason.label}</span>
                   <span className="inline-flex items-center rounded-full bg-error-container/15 px-2 py-0.5 text-xs font-semibold text-error">
-                    {reason.count} {reason.count === 1 ? "caso" : "casos"}
+                    {reason.count} {reason.count === 1 ? (language === "es" ? "caso" : "case") : (language === "es" ? "casos" : "cases")}
                   </span>
                 </div>
               ))}
               {disputeReasons.length === 0 && (
                 <div className="flex h-28 items-center justify-center text-center">
-                  <p className="text-body-sm text-on-surface-muted">No hay disputas registradas.</p>
+                  <p className="text-body-sm text-on-surface-muted">
+                    {language === "es" ? "No hay disputas registradas." : "No disputes registered."}
+                  </p>
                 </div>
               )}
             </div>

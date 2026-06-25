@@ -5,20 +5,12 @@ import { Footer } from "@/components/layout/footer";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { MobileSidebar } from "@/components/admin/MobileSidebar";
+import { cookies } from "next/headers";
+import { getTranslations } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "Panel Admin",
 };
-
-const adminNavItems = [
-  { href: "/admin", label: "Dashboard", icon: "📊" },
-  { href: "/admin/analytics", label: "Analíticas", icon: "📈" },
-  { href: "/admin/transactions", label: "Transacciones", icon: "💳" },
-  { href: "/admin/disputes", label: "Disputas", icon: "⚖️" },
-  { href: "/admin/ledger", label: "Libro Mayor", icon: "📒" },
-  { href: "/admin/wallets", label: "Billeteras", icon: "👛" },
-  { href: "/admin/simulator", label: "Simulador", icon: "⚙️" },
-];
 
 export default async function AdminLayout({
   children,
@@ -40,6 +32,20 @@ export default async function AdminLayout({
     redirect("/dashboard");
   }
 
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("locale")?.value || "en";
+  const t = getTranslations(locale);
+
+  const adminNavItems = [
+    { href: "/admin", label: t("nav.adminDashboard"), icon: "📊" },
+    { href: "/admin/analytics", label: t("nav.adminAnalytics"), icon: "📈" },
+    { href: "/admin/transactions", label: t("nav.adminTransactions"), icon: "💳" },
+    { href: "/admin/disputes", label: t("nav.adminDisputes"), icon: "⚖️" },
+    { href: "/admin/ledger", label: t("nav.adminLedger"), icon: "📒" },
+    { href: "/admin/wallets", label: t("nav.adminWallets"), icon: "👛" },
+    { href: "/admin/simulator", label: t("nav.adminSimulator"), icon: "⚙️" },
+  ];
+
   return (
     <>
       <Header />
@@ -47,9 +53,9 @@ export default async function AdminLayout({
         {/* Sidebar — tonal separation, no borders */}
         <aside className="hidden lg:flex w-64 flex-col bg-surface-mid">
           <div className="px-6 py-8">
-            <p className="text-label-md text-secondary">Administración</p>
+            <p className="text-label-md text-secondary">{t("nav.admin")}</p>
             <h2 className="mt-1 text-headline-md text-on-surface">
-              Payments
+              {t("nav.adminTitle")}
             </h2>
           </div>
           <nav className="flex-1 px-4 space-y-0.5">
@@ -80,3 +86,4 @@ export default async function AdminLayout({
     </>
   );
 }
+

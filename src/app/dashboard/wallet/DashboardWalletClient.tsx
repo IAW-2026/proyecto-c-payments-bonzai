@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Pagination, paginateArray } from "@/components/ui/pagination";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 const PAGE_SIZE = 20;
 
@@ -27,26 +28,31 @@ interface DashboardWalletClientProps {
   initialMovements: Movement[];
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
-}
-
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr));
-}
-
 export default function DashboardWalletClient({ initialWallet, initialMovements }: DashboardWalletClientProps) {
   const [page, setPage] = useState(1);
   const { data: movements, totalPages } = paginateArray(initialMovements, page, PAGE_SIZE);
+  const { language } = useLanguage();
+
+  function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat(language === "es" ? "es-AR" : "en-US", { style: "currency", currency: "ARS" }).format(amount);
+  }
+
+  function formatDate(dateStr: string): string {
+    return new Intl.DateTimeFormat(language === "es" ? "es-AR" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateStr));
+  }
 
   return (
     <div className="space-y-10 animate-fade-in">
       {/* Editorial Header */}
       <div>
-        <p className="text-label-md text-secondary mb-2">Finanzas</p>
-        <h1 className="text-display-sm text-on-surface">Billetera</h1>
+        <p className="text-label-md text-secondary mb-2">
+          {language === "es" ? "Finanzas" : "Finance"}
+        </p>
+        <h1 className="text-display-sm text-on-surface">
+          {language === "es" ? "Billetera" : "Wallet"}
+        </h1>
         <p className="mt-2 text-body-md text-on-surface-muted">
-          Tu saldo y movimientos financieros
+          {language === "es" ? "Tu saldo y movimientos financieros" : "Your balance and financial movements"}
         </p>
       </div>
 
@@ -57,7 +63,9 @@ export default function DashboardWalletClient({ initialWallet, initialMovements 
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
           <CardHeader className="relative pb-2">
             <CardDescription>
-              <span className="text-label-md">Saldo total</span>
+              <span className="text-label-md">
+                {language === "es" ? "Saldo total" : "Total balance"}
+              </span>
             </CardDescription>
           </CardHeader>
           <CardContent className="relative">
@@ -73,14 +81,18 @@ export default function DashboardWalletClient({ initialWallet, initialMovements 
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <span className="inline-block h-2 w-2 rounded-full bg-success" />
-              <span className="text-label-md">Disponible</span>
+              <span className="text-label-md">
+                {language === "es" ? "Disponible" : "Available"}
+              </span>
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-headline-lg text-success">
               {formatCurrency(initialWallet.availableBalance)}
             </p>
-            <p className="text-label-sm text-on-surface-muted mt-1">Listo para retirar</p>
+            <p className="text-label-sm text-on-surface-muted mt-1">
+              {language === "es" ? "Listo para retirar" : "Ready to withdraw"}
+            </p>
           </CardContent>
         </Card>
 
@@ -89,14 +101,18 @@ export default function DashboardWalletClient({ initialWallet, initialMovements 
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <span className="inline-block h-2 w-2 rounded-full bg-info" />
-              <span className="text-label-md">Retenido</span>
+              <span className="text-label-md">
+                {language === "es" ? "Retenido" : "Held"}
+              </span>
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-headline-lg text-info">
               {formatCurrency(initialWallet.heldBalance)}
             </p>
-            <p className="text-label-sm text-on-surface-muted mt-1">En período de protección</p>
+            <p className="text-label-sm text-on-surface-muted mt-1">
+              {language === "es" ? "En período de protección" : "In protection period"}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -104,7 +120,9 @@ export default function DashboardWalletClient({ initialWallet, initialMovements 
       {/* Movements */}
       <Card>
         <CardHeader>
-          <h2 className="text-headline-md text-on-surface">Últimos movimientos</h2>
+          <h2 className="text-headline-md text-on-surface">
+            {language === "es" ? "Últimos movimientos" : "Recent movements"}
+          </h2>
         </CardHeader>
         <CardContent>
           <div className="space-y-1">
@@ -150,7 +168,7 @@ export default function DashboardWalletClient({ initialWallet, initialMovements 
 
           {initialMovements.length === 0 && (
             <p className="py-8 text-center text-body-sm text-on-surface-muted">
-              No tienes movimientos financieros registrados.
+              {language === "es" ? "No tienes movimientos financieros registrados." : "No registered financial movements found."}
             </p>
           )}
 
@@ -168,3 +186,4 @@ export default function DashboardWalletClient({ initialWallet, initialMovements 
     </div>
   );
 }
+

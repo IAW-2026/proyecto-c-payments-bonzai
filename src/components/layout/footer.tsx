@@ -1,4 +1,10 @@
+"use client";
+
+import { useLanguage } from "@/lib/contexts/LanguageContext";
+
 export function Footer() {
+  const { t } = useLanguage();
+
   return (
     <footer className="mt-auto bg-surface-low pb-24">
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
@@ -12,10 +18,11 @@ export function Footer() {
             </span>
           </div>
           <p className="text-body-sm text-on-surface-muted">
-            © {new Date().getFullYear()} Bonzai Marketplace. Proyecto IAW 2026.
+            © {new Date().getFullYear()} Bonzai Marketplace. {t("footer.project")}
           </p>
         </div>
       </div>
     </footer>
   );
 }
+

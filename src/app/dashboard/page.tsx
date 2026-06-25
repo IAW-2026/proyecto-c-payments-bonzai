@@ -3,16 +3,18 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { getTranslations } from "@/lib/i18n";
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
+function formatCurrency(amount: number, locale: string): string {
+  return new Intl.NumberFormat(locale === "es" ? "es-AR" : "en-US", {
     style: "currency",
     currency: "ARS",
   }).format(amount);
 }
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("es-AR", {
+function formatDate(date: Date, locale: string): string {
+  return new Intl.DateTimeFormat(locale === "es" ? "es-AR" : "en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -20,6 +22,10 @@ function formatDate(date: Date): string {
 
 export default async function DashboardPage() {
   const userId = await requireAuth();
+
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("locale")?.value || "en";
+  const t = getTranslations(locale);
 
   // 1. Billetera (Saldo disponible y retenido)
   const wallet = await db.wallet.upsert({
@@ -76,10 +82,10 @@ export default async function DashboardPage() {
     <div className="space-y-10 animate-fade-in">
       {/* Editorial Header */}
       <div>
-        <p className="text-label-md text-secondary mb-2">Panel de usuario</p>
-        <h1 className="text-display-sm text-on-surface">Dashboard</h1>
+        <p className="text-label-md text-secondary mb-2">{t("dashboard.label")}</p>
+        <h1 className="text-display-sm text-on-surface">{t("dashboard.title")}</h1>
         <p className="mt-2 text-body-md text-on-surface-muted">
-          Resumen de tu actividad financiera en Bonzai
+          {t("dashboard.desc")}
         </p>
       </div>
 
@@ -87,28 +93,28 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
-            title: "Transacciones",
+            title: t("dashboard.stats.transactions"),
             value: totalTransactions.toString(),
             icon: "📊",
-            description: "Total procesadas",
+            description: t("dashboard.stats.transactionsDesc"),
           },
           {
-            title: "Volumen total",
-            value: formatCurrency(totalVolume),
+            title: t("dashboard.stats.volume"),
+            value: formatCurrency(totalVolume, locale),
             icon: "💰",
-            description: "Monto total operado",
+            description: t("dashboard.stats.volumeDesc"),
           },
           {
-            title: "Saldo retenido",
-            value: formatCurrency(held),
+            title: t("dashboard.stats.held"),
+            value: formatCurrency(held, locale),
             icon: "🔒",
-            description: "En período de protección",
+            description: t("dashboard.stats.heldDesc"),
           },
           {
-            title: "Saldo disponible",
-            value: formatCurrency(available),
+            title: t("dashboard.stats.available"),
+            value: formatCurrency(available, locale),
             icon: "✅",
-            description: "Listo para retirar",
+            description: t("dashboard.stats.availableDesc"),
           },
         ].map((stat) => (
           <Card key={stat.title} hover>
@@ -134,12 +140,12 @@ export default async function DashboardPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <h2 className="text-headline-md text-on-surface">Transacciones recientes</h2>
+            <h2 className="text-headline-md text-on-surface">{t("dashboard.sections.recent")}</h2>
             <Link
               href="/dashboard/transactions"
               className="text-body-sm text-secondary font-medium transition-colors duration-300 hover:text-primary"
             >
-              Ver todas →
+              {t("dashboard.buttons.viewAll")} →
             </Link>
           </div>
         </CardHeader>
@@ -153,16 +159,16 @@ export default async function DashboardPage() {
                     ID
                   </th>
                   <th className="pb-4 text-left text-label-sm text-on-surface-muted">
-                    Orden
+                    {t("dashboard.table.headers.order")}
                   </th>
                   <th className="pb-4 text-left text-label-sm text-on-surface-muted">
-                    Monto
+                    {t("dashboard.table.headers.amount")}
                   </th>
                   <th className="pb-4 text-left text-label-sm text-on-surface-muted">
-                    Estado
+                    {t("dashboard.table.headers.status")}
                   </th>
                   <th className="pb-4 text-left text-label-sm text-on-surface-muted">
-                    Fecha
+                    {t("dashboard.table.headers.date")}
                   </th>
                 </tr>
               </thead>
@@ -181,20 +187,20 @@ export default async function DashboardPage() {
                       {txn.orderId}
                     </td>
                     <td className="py-4 text-body-sm font-medium text-on-surface">
-                      {formatCurrency(Number(txn.amount))}
+                      {formatCurrency(Number(txn.amount), locale)}
                     </td>
                     <td className="py-4">
-                      <StatusBadge status={txn.status} size="sm" />
+                      <StatusBadge status={txn.status} size="sm" locale={locale} />
                     </td>
                     <td className="py-4 text-body-sm text-on-surface-muted">
-                      {formatDate(txn.createdAt)}
+                      {formatDate(txn.createdAt, locale)}
                     </td>
                   </tr>
                 ))}
                 {recentTransactions.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-on-surface-muted">
-                      No tienes transacciones recientes.
+                      {t("dashboard.empty")}
                     </td>
                   </tr>
                 )}
@@ -203,7 +209,7 @@ export default async function DashboardPage() {
           </div>
           {recentTransactions.length === 0 && (
             <p className="py-8 text-center text-body-sm text-on-surface-muted">
-              No tienes transacciones registradas aún.
+              {t("dashboard.empty")}
             </p>
           )}
         </CardContent>
@@ -211,3 +217,4 @@ export default async function DashboardPage() {
     </div>
   );
 }
+

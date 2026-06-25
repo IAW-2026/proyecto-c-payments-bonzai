@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, FormEvent } from "react";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 interface Message {
   id: string;
@@ -37,11 +38,28 @@ function formatMarkdown(text: string): string {
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { language, t } = useLanguage();
+
+  // Set or update initial welcome message when language changes
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 0 || (prev.length === 1 && prev[0].id === "welcome")) {
+        return [
+          {
+            id: "welcome",
+            role: "bot",
+            content: t("chatbot.welcome"),
+          },
+        ];
+      }
+      return prev;
+    });
+  }, [language, t]);
 
   // Auto-scroll al último mensaje
   useEffect(() => {
@@ -86,7 +104,7 @@ export function Chatbot() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({ message: trimmed, locale: language }),
       });
 
       const data = await res.json();
@@ -96,7 +114,7 @@ export function Chatbot() {
         role: "bot",
         content: res.ok
           ? data.reply
-          : data.error || "No pude procesar tu mensaje. Intentá de nuevo.",
+          : data.error || t("chatbot.error"),
       };
       setMessages((prev) => [...prev, botMsg]);
     } catch {
@@ -105,7 +123,9 @@ export function Chatbot() {
         {
           id: `err-${Date.now()}`,
           role: "bot",
-          content: "Error de conexión. Verificá tu internet e intentá de nuevo.",
+          content: language === "es"
+            ? "Error de conexión. Verificá tu internet e intentá de nuevo."
+            : "Connection error. Please check your internet and try again.",
         },
       ]);
     } finally {
@@ -120,8 +140,8 @@ export function Chatbot() {
         id="cashi-toggle"
         onClick={handleToggle}
         className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-ambient-lg transition-all duration-300 hover:scale-105 hover:bg-primary-container active:scale-95"
-        aria-label={isOpen ? "Cerrar chat de Cashi" : "Abrir chat de Cashi"}
-        title="Cashi — Asistente financiero"
+        aria-label={isOpen ? (language === "es" ? "Cerrar chat de Cashi" : "Close Cashi chat") : (language === "es" ? "Abrir chat de Cashi" : "Open Cashi chat")}
+        title={`Cashi — ${t("chatbot.assistant")}`}
       >
         {isOpen ? (
           <svg
@@ -158,13 +178,13 @@ export function Chatbot() {
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-on-primary">Cashi</h3>
               <p className="text-xs text-on-primary/70">
-                Asistente financiero
+                {t("chatbot.assistant")}
               </p>
             </div>
             <button
               onClick={handleToggle}
               className="rounded p-1 text-on-primary/70 transition-colors hover:bg-white/10 hover:text-on-primary"
-              aria-label="Cerrar chat"
+              aria-label={language === "es" ? "Cerrar chat" : "Close chat"}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -230,7 +250,7 @@ export function Chatbot() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Preguntale a Cashi..."
+              placeholder={t("chatbot.placeholder")}
               maxLength={500}
               disabled={isLoading}
               className="flex-1 rounded-lg border border-outline-variant/30 bg-surface-lowest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-muted/60 outline-none transition-colors focus:border-primary/40 focus:ring-2 focus:ring-primary/10 disabled:opacity-50"
@@ -240,7 +260,7 @@ export function Chatbot() {
               type="submit"
               disabled={isLoading || !input.trim()}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary transition-all duration-200 hover:bg-primary-container active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              aria-label="Enviar mensaje"
+              aria-label={language === "es" ? "Enviar mensaje" : "Send message"}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

@@ -3,6 +3,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { getTranslations } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -10,12 +12,16 @@ export const metadata: Metadata = {
   title: "Admin Dashboard",
 };
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+function formatCurrency(amount: number, locale: string): string {
+  return new Intl.NumberFormat(locale === "es" ? "es-AR" : "en-US", { style: "currency", currency: "ARS" }).format(amount);
 }
 
 export default async function AdminDashboardPage() {
   await requireRole(["payments_admin", "admin"]);
+
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("locale")?.value || "en";
+  const t = getTranslations(locale);
 
   // 1. Total transactions count (excluding pending drafts)
   const totalTransactions = await db.transaction.count({
@@ -63,26 +69,34 @@ export default async function AdminDashboardPage() {
     include: { transaction: true },
   });
 
+  const reasonLabels: Record<string, string> = {
+    ITEM_NOT_RECEIVED: locale === "es" ? "Producto no recibido" : "Item not received",
+    ITEM_DAMAGED: locale === "es" ? "Producto dañado" : "Item damaged",
+    ITEM_NOT_AS_DESCRIBED: locale === "es" ? "No coincide con la descripción" : "Not as described",
+    WRONG_ITEM: locale === "es" ? "Producto incorrecto" : "Wrong item",
+    OTHER: locale === "es" ? "Otro" : "Other",
+  };
+
   return (
     <div className="space-y-10 animate-fade-in">
       {/* Editorial Header */}
       <div>
-        <p className="text-label-md text-secondary mb-2">Vista general</p>
-        <h1 className="text-display-sm text-on-surface">Admin Dashboard</h1>
+        <p className="text-label-md text-secondary mb-2">{t("admin.label")}</p>
+        <h1 className="text-display-sm text-on-surface">{t("admin.title")}</h1>
         <p className="mt-2 text-body-md text-on-surface-muted">
-          Vista general del sistema de pagos Bonzai
+          {t("admin.desc")}
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[
-          { title: "Transacciones totales", value: totalTransactions.toString(), icon: "📊" },
-          { title: "Volumen operado", value: formatCurrency(totalVolume), icon: "💰" },
-          { title: "Disputas activas", value: activeDisputes.toString(), icon: "⚖️" },
-          { title: "Comisiones generadas", value: formatCurrency(totalCommission), icon: "🏦" },
-          { title: "Pagos pendientes", value: pendingPayments.toString(), icon: "⏳" },
-          { title: "Completados hoy", value: completedToday.toString(), icon: "✅" },
+          { title: t("admin.stats.totalTx"), value: totalTransactions.toString(), icon: "📊" },
+          { title: t("admin.stats.totalVolume"), value: formatCurrency(totalVolume, locale), icon: "💰" },
+          { title: t("admin.stats.activeDisputes"), value: activeDisputes.toString(), icon: "⚖️" },
+          { title: t("admin.stats.commissions"), value: formatCurrency(totalCommission, locale), icon: "🏦" },
+          { title: t("admin.stats.pendingPayments"), value: pendingPayments.toString(), icon: "⏳" },
+          { title: t("admin.stats.completedToday"), value: completedToday.toString(), icon: "✅" },
         ].map((stat) => (
           <Card key={stat.title} hover>
             <CardHeader className="pb-2">
@@ -103,7 +117,7 @@ export default async function AdminDashboardPage() {
         <CardHeader>
           <div className="flex items-center gap-3">
             <span className="text-xl">⚖️</span>
-            <h2 className="text-headline-md text-on-surface">Disputas recientes</h2>
+            <h2 className="text-headline-md text-on-surface">{t("admin.sections.recentDisputes")}</h2>
           </div>
         </CardHeader>
         <CardContent>
@@ -117,24 +131,24 @@ export default async function AdminDashboardPage() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-body-sm font-medium text-on-surface">
-                    {dispute.transaction?.orderId || "Orden desconocida"}
+                    {dispute.transaction?.orderId || (locale === "es" ? "Orden desconocida" : "Unknown order")}
                   </p>
                   <p className="text-label-sm text-on-surface-muted truncate">
-                    {dispute.reason.replace(/_/g, " ")} · {dispute.id}
+                    {reasonLabels[dispute.reason] || dispute.reason.replace(/_/g, " ")} · {dispute.id}
                   </p>
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                   <p className="text-body-sm font-semibold text-on-surface">
-                    {formatCurrency(Number(dispute.transaction?.amount || 0))}
+                    {formatCurrency(Number(dispute.transaction?.amount || 0), locale)}
                   </p>
-                  <StatusBadge status={dispute.transaction?.status || "DISPUTED"} size="sm" />
+                  <StatusBadge status={dispute.transaction?.status || "DISPUTED"} size="sm" locale={locale} />
                 </div>
               </div>
             ))}
           </div>
           {disputes.length === 0 && (
             <p className="py-8 text-center text-body-sm text-on-surface-muted">
-              No se encontraron disputas registradas en el sistema.
+              {t("admin.emptyDisputes")}
             </p>
           )}
         </CardContent>
@@ -142,3 +156,4 @@ export default async function AdminDashboardPage() {
     </div>
   );
 }
+

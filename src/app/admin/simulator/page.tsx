@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 interface SimulatedUser {
   id: string;
@@ -91,6 +92,7 @@ const copyToClipboard = (text: string): boolean => {
 };
 
 export default function SimulatorPage() {
+  const { language } = useLanguage();
   // ── State ──
   const [users, setUsers] = useState<SimulatedUser[]>([]);
   const [editUsers, setEditUsers] = useState<SimulatedUser[]>([]);
@@ -170,7 +172,7 @@ export default function SimulatorPage() {
     try {
       const userIds = users.map((u) => u.id).join(",");
       const response = await fetch(`/api/simulator/webhook?userIds=${encodeURIComponent(userIds)}`);
-      if (!response.ok) throw new Error("Error fetching simulator database state.");
+      if (!response.ok) throw new Error(language === "es" ? "Error al obtener el estado del simulador." : "Error fetching simulator database state.");
       const data = await response.json();
       setDbInspector(data);
     } catch (err: any) {
@@ -178,32 +180,45 @@ export default function SimulatorPage() {
     } finally {
       setInspectorLoading(false);
     }
-  }, [users]);
+  }, [users, language]);
 
   // Fetch dynamic users from Clerk
   const syncUsersWithClerk = useCallback(async (showToast = false) => {
     try {
       const response = await fetch("/api/simulator/users");
-      if (!response.ok) throw new Error("No se pudo obtener la lista de usuarios desde Clerk.");
+      if (!response.ok) throw new Error(language === "es" ? "No se pudo obtener la lista de usuarios desde Clerk." : "Failed to retrieve user list from Clerk.");
       const data = await response.json();
       if (Array.isArray(data) && data.length > 0) {
         localStorage.setItem("bonzai_simulator_users", JSON.stringify(data));
         setUsers(data);
         setEditUsers(data);
         if (showToast) {
-          triggerToast(`Sincronizados ${data.length} usuarios con Clerk.`, "success");
+          triggerToast(
+            language === "es"
+              ? `Sincronizados ${data.length} usuarios con Clerk.`
+              : `Synced ${data.length} users with Clerk.`,
+            "success"
+          );
         }
       } else {
         if (showToast) {
-          triggerToast("La lista de usuarios obtenida está vacía o no tiene roles.", "info");
+          triggerToast(
+            language === "es"
+              ? "La lista de usuarios obtenida está vacía o no tiene roles."
+              : "The retrieved user list is empty or has no roles.",
+            "info"
+          );
         }
       }
     } catch (err: any) {
       if (showToast) {
-        triggerToast(err.message || "Error al sincronizar con Clerk.", "error");
+        triggerToast(
+          err.message || (language === "es" ? "Error al sincronizar con Clerk." : "Error syncing with Clerk."),
+          "error"
+        );
       }
     }
-  }, []);
+  }, [language]);
 
   // Load / Save users from localstorage
   useEffect(() => {
@@ -259,13 +274,23 @@ export default function SimulatorPage() {
     localStorage.setItem("bonzai_simulator_users", JSON.stringify(editUsers));
     setUsers(editUsers);
     setIsEditingUsers(false);
-    triggerToast("Configuración de usuarios guardada con éxito.", "success");
+    triggerToast(
+      language === "es"
+        ? "Configuración de usuarios guardada con éxito."
+        : "User configuration saved successfully.",
+      "success"
+    );
   };
 
   // Run checkout simulator
   const handleSimulateCheckout = async () => {
     if (cartItems.length === 0) {
-      triggerToast("Agrega al menos una orden al carrito de compras.", "error");
+      triggerToast(
+        language === "es"
+          ? "Agrega al menos una orden al carrito de compras."
+          : "Add at least one order to the shopping cart.",
+        "error"
+      );
       return;
     }
 
@@ -279,7 +304,9 @@ export default function SimulatorPage() {
         sellerId: item.sellerId,
         amount: Number(item.amount),
         orderRef: item.orderRef,
-        description: `Orden de pago ${item.orderRef.substring(0, 8)}`,
+        description: language === "es"
+          ? `Orden de pago ${item.orderRef.substring(0, 8)}`
+          : `Payment order ${item.orderRef.substring(0, 8)}`,
       })),
     };
 
@@ -298,14 +325,27 @@ export default function SimulatorPage() {
       if (response.ok && data.transactionId) {
         // Auto fill checkout session ID in webhook form
         setSessionIdToPay(data.transactionId);
-        triggerToast("Checkout simulado con éxito (Petición procesada).", "success");
+        triggerToast(
+          language === "es"
+            ? "Checkout simulado con éxito (Petición procesada)."
+            : "Checkout simulated successfully (Request processed).",
+          "success"
+        );
         fetchDbState(); // update state
       } else {
-        triggerToast(data.message || "Error al procesar el checkout.", "error");
+        triggerToast(
+          data.message || (language === "es" ? "Error al procesar el checkout." : "Error processing checkout."),
+          "error"
+        );
       }
     } catch (err: any) {
       setCheckoutResponse({ error: "CONEXION_FALLIDA", message: err.message });
-      triggerToast("Error de conexión al enviar el checkout.", "error");
+      triggerToast(
+        language === "es"
+          ? "Error de conexión al enviar el checkout."
+          : "Connection error sending checkout.",
+        "error"
+      );
     } finally {
       setCheckoutLoading(false);
     }
@@ -314,7 +354,12 @@ export default function SimulatorPage() {
   // Run webhook simulator
   const handleSimulateWebhook = async () => {
     if (!sessionIdToPay) {
-      triggerToast("Ingresa un ID de CheckoutSession para simular el pago.", "error");
+      triggerToast(
+        language === "es"
+          ? "Ingresa un ID de CheckoutSession para simular el pago."
+          : "Enter a CheckoutSession ID to simulate payment.",
+        "error"
+      );
       return;
     }
 
@@ -340,15 +385,28 @@ export default function SimulatorPage() {
       setWebhookResponse(data);
 
       if (response.ok && data.success) {
-        triggerToast(`Webhook de pago procesado exitosamente como: ${mockStatus.toUpperCase()}`, "success");
+        triggerToast(
+          language === "es"
+            ? `Webhook de pago procesado exitosamente como: ${mockStatus.toUpperCase()}`
+            : `Payment webhook processed successfully as: ${mockStatus.toUpperCase()}`,
+          "success"
+        );
         // Wait a small moment to let DB write complete, then refresh DB state
         setTimeout(fetchDbState, 800);
       } else {
-        triggerToast(data.message || "La simulación de webhook reportó un error.", "error");
+        triggerToast(
+          data.message || (language === "es" ? "La simulación de webhook reportó un error." : "The webhook simulation reported an error."),
+          "error"
+        );
       }
     } catch (err: any) {
       setWebhookResponse({ error: "CONEXION_FALLIDA", message: err.message });
-      triggerToast("Error al invocar el proxy del webhook.", "error");
+      triggerToast(
+        language === "es"
+          ? "Error al invocar el proxy del webhook."
+          : "Error invoking the webhook proxy.",
+        "error"
+      );
     } finally {
       setWebhookLoading(false);
     }
@@ -365,13 +423,24 @@ export default function SimulatorPage() {
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        triggerToast(`Orden ${orderId.substring(0, 8)} marcada como ENTREGADA (fondos en escrow).`, "success");
+        triggerToast(
+          language === "es"
+            ? `Orden ${orderId.substring(0, 8)} marcada como ENTREGADA (fondos en escrow).`
+            : `Order ${orderId.substring(0, 8)} marked as DELIVERED (funds in escrow).`,
+          "success"
+        );
         setTimeout(fetchDbState, 800);
       } else {
-        triggerToast(data.responseReceived?.message || data.message || "Error al simular la entrega.", "error");
+        triggerToast(
+          data.responseReceived?.message || data.message || (language === "es" ? "Error al simular la entrega." : "Error simulating delivery."),
+          "error"
+        );
       }
     } catch (err: any) {
-      triggerToast(err.message || "Error al conectar con el servidor.", "error");
+      triggerToast(
+        err.message || (language === "es" ? "Error al conectar con el servidor." : "Error connecting to the server."),
+        "error"
+      );
     } finally {
       setDeliveryLoading(null);
     }
@@ -407,14 +476,22 @@ export default function SimulatorPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <p className="text-label-md text-secondary mb-2">Herramienta de desarrollo</p>
-          <h1 className="text-display-sm text-on-surface">Simulador M2M & Webhooks</h1>
+          <p className="text-label-md text-secondary mb-2">
+            {language === "es" ? "Herramienta de desarrollo" : "Developer Tool"}
+          </p>
+          <h1 className="text-display-sm text-on-surface">
+            {language === "es" ? "Simulador M2M & Webhooks" : "M2M & Webhooks Simulator"}
+          </h1>
           <p className="mt-2 text-body-md text-on-surface-muted">
-            Simula llamadas entrantes desde Seller App y notificaciones salientes de Mercado Pago en tiempo real.
+            {language === "es"
+              ? "Simula llamadas entrantes desde Seller App y notificaciones salientes de Mercado Pago en tiempo real."
+              : "Simulates incoming calls from Seller App and outgoing Mercado Pago notifications in real time."}
           </p>
         </div>
         <Button variant="secondary" onClick={fetchDbState} disabled={inspectorLoading}>
-          {inspectorLoading ? "Refrescando..." : "🔄 Refrescar base de datos"}
+          {inspectorLoading
+            ? (language === "es" ? "Refrescando..." : "Refreshing...")
+            : (language === "es" ? "🔄 Refrescar base de datos" : "🔄 Refresh Database")}
         </Button>
       </div>
 
@@ -426,8 +503,12 @@ export default function SimulatorPage() {
             <CardHeader className="border-b border-surface-container/50">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle className="text-headline-md">Usuarios Simulados</CardTitle>
-                  <CardDescription>Establece tus 5 IDs reales de Clerk o mocks</CardDescription>
+                  <CardTitle className="text-headline-md">
+                    {language === "es" ? "Usuarios Simulados" : "Simulated Users"}
+                  </CardTitle>
+                  <CardDescription>
+                    {language === "es" ? "Establece tus 5 IDs reales de Clerk o mocks" : "Set your 5 real Clerk IDs or mocks"}
+                  </CardDescription>
                 </div>
                 {!isEditingUsers && (
                   <div className="flex gap-1">
@@ -435,12 +516,12 @@ export default function SimulatorPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => syncUsersWithClerk(true)}
-                      title="Sincronizar con los usuarios generados de Clerk"
+                      title={language === "es" ? "Sincronizar con los usuarios generados de Clerk" : "Sync with generated Clerk users"}
                     >
-                      🔄 Sincronizar
+                      {language === "es" ? "🔄 Sincronizar" : "🔄 Sync"}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setIsEditingUsers(true)}>
-                      ✏️ Editar
+                      {language === "es" ? "✏️ Editar" : "✏️ Edit"}
                     </Button>
                   </div>
                 )}
@@ -452,7 +533,9 @@ export default function SimulatorPage() {
                   {editUsers.map((user, idx) => (
                     <div key={user.id} className="p-3 bg-surface-low rounded border border-outline-variant/40 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-label-sm text-secondary">Usuario {idx + 1}</span>
+                        <span className="text-label-sm text-secondary">
+                          {language === "es" ? `Usuario ${idx + 1}` : `User ${idx + 1}`}
+                        </span>
                         <span className="text-xs uppercase font-mono px-1.5 py-0.5 rounded bg-surface-container text-on-surface-muted">
                           {user.roles ? user.roles.join(", ") : ""}
                         </span>
@@ -465,7 +548,7 @@ export default function SimulatorPage() {
                           updated[idx].name = e.target.value;
                           setEditUsers(updated);
                         }}
-                        placeholder="Nombre / Alias"
+                        placeholder={language === "es" ? "Nombre / Alias" : "Name / Alias"}
                         className="w-full text-xs bg-surface-lowest border border-outline-variant rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                       <input
@@ -476,7 +559,7 @@ export default function SimulatorPage() {
                           updated[idx].email = e.target.value;
                           setEditUsers(updated);
                         }}
-                        placeholder="Email de Clerk"
+                        placeholder={language === "es" ? "Email de Clerk" : "Clerk Email"}
                         className="w-full text-xs bg-surface-lowest border border-outline-variant rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                       <input
@@ -487,7 +570,7 @@ export default function SimulatorPage() {
                           updated[idx].roles = e.target.value.split(",").map(r => r.trim()).filter(r => r.length > 0);
                           setEditUsers(updated);
                         }}
-                        placeholder="Roles (separados por coma)"
+                        placeholder={language === "es" ? "Roles (separados por coma)" : "Roles (comma separated)"}
                         className="w-full text-xs bg-surface-lowest border border-outline-variant rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                       <input
@@ -505,10 +588,10 @@ export default function SimulatorPage() {
                   ))}
                   <div className="flex gap-2 justify-end pt-2">
                     <Button variant="ghost" size="sm" onClick={() => { setEditUsers(users); setIsEditingUsers(false); }}>
-                      Cancelar
+                      {language === "es" ? "Cancelar" : "Cancel"}
                     </Button>
                     <Button variant="primary" size="sm" onClick={saveUserConfig}>
-                      Guardar
+                      {language === "es" ? "Guardar" : "Save"}
                     </Button>
                   </div>
                 </div>
@@ -543,7 +626,9 @@ export default function SimulatorPage() {
                     </div>
                   ))}
                   <p className="text-[11px] text-on-surface-muted mt-2 italic text-center">
-                    Los IDs se guardan en tu navegador local (localStorage).
+                    {language === "es"
+                      ? "Los IDs se guardan en tu navegador local (localStorage)."
+                      : "IDs are saved in your local browser storage (localStorage)."}
                   </p>
                 </div>
               )}
@@ -555,16 +640,22 @@ export default function SimulatorPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card className="ghost-border shadow-ambient-sm">
             <CardHeader className="border-b border-surface-container/50">
-              <CardTitle className="text-headline-md">1. Simular Checkout (POST desde Seller App)</CardTitle>
+              <CardTitle className="text-headline-md">
+                {language === "es" ? "1. Simular Checkout (POST desde Seller App)" : "1. Simulate Checkout (POST from Seller App)"}
+              </CardTitle>
               <CardDescription>
-                Simula el flujo de compra. Se enviará una orden de compra agrupada (carrito) al endpoint público del Checkout de Pagos.
+                {language === "es"
+                  ? "Simula el flujo de compra. Se enviará una orden de compra agrupada (carrito) al endpoint público del Checkout de Pagos."
+                  : "Simulates the purchasing flow. A grouped purchase order (cart) will be sent to the public Payments Checkout endpoint."}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               {/* Buyer configurations */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-label-sm text-secondary mb-1">Comprador (buyerId Clerk)</label>
+                  <label className="block text-label-sm text-secondary mb-1">
+                    {language === "es" ? "Comprador (buyerId Clerk)" : "Buyer (Clerk buyerId)"}
+                  </label>
                   <select
                     value={selectedBuyer}
                     onChange={(e) => setSelectedBuyer(e.target.value)}
@@ -578,7 +669,9 @@ export default function SimulatorPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-label-sm text-secondary mb-1">Email del Comprador</label>
+                  <label className="block text-label-sm text-secondary mb-1">
+                    {language === "es" ? "Email del Comprador" : "Buyer Email"}
+                  </label>
                   <input
                     type="email"
                     value={buyerEmail}
@@ -591,15 +684,19 @@ export default function SimulatorPage() {
               {/* Cart Items Area */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center border-b border-surface-container pb-2">
-                  <span className="text-body-sm font-semibold text-on-surface">Carrito / Órdenes a comprar</span>
+                  <span className="text-body-sm font-semibold text-on-surface">
+                    {language === "es" ? "Carrito / Órdenes a comprar" : "Cart / Orders to purchase"}
+                  </span>
                   <Button variant="secondary" size="sm" onClick={addRandomCartItem}>
-                    ➕ Agregar Orden
+                    {language === "es" ? "➕ Agregar Orden" : "➕ Add Order"}
                   </Button>
                 </div>
 
                 {cartItems.length === 0 ? (
                   <div className="text-center py-6 bg-surface-low/40 rounded border border-dashed border-outline-variant/60">
-                    <p className="text-body-sm text-on-surface-muted">El carrito está vacío. Agrega órdenes para simular el cobro.</p>
+                    <p className="text-body-sm text-on-surface-muted">
+                      {language === "es" ? "El carrito está vacío. Agrega órdenes para simular el cobro." : "The cart is empty. Add orders to simulate checkout."}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
@@ -609,7 +706,9 @@ export default function SimulatorPage() {
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                             {/* Seller Selection */}
                             <div className="w-full">
-                              <label className="block text-[10px] text-secondary mb-0.5">Vendedor:</label>
+                              <label className="block text-[10px] text-secondary mb-0.5">
+                                {language === "es" ? "Vendedor:" : "Seller:"}
+                              </label>
                               <select
                                 value={item.sellerId}
                                 onChange={(e) => {
@@ -619,7 +718,7 @@ export default function SimulatorPage() {
                                 }}
                                 className="w-full text-[11px] rounded border border-outline-variant bg-surface px-2 py-1.5 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
                               >
-                                <option value="">Seleccionar Vendedor</option>
+                                <option value="">{language === "es" ? "Seleccionar Vendedor" : "Select Seller"}</option>
                                 {users.filter((u) => u.roles && u.roles.includes("seller") && u.id !== selectedBuyer).map((u) => (
                                   <option key={u.id} value={u.id}>
                                     {u.name} ({u.email})
@@ -630,7 +729,9 @@ export default function SimulatorPage() {
 
                             {/* Amount input */}
                             <div className="w-full">
-                              <label className="block text-[10px] text-secondary mb-0.5">Monto ($ ARS):</label>
+                              <label className="block text-[10px] text-secondary mb-0.5">
+                                {language === "es" ? "Monto ($ ARS):" : "Amount ($ ARS):"}
+                              </label>
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs text-on-surface-muted">$</span>
                                 <input
@@ -641,7 +742,7 @@ export default function SimulatorPage() {
                                     updated[idx].amount = Number(e.target.value);
                                     setCartItems(updated);
                                   }}
-                                  placeholder="Monto"
+                                  placeholder={language === "es" ? "Monto" : "Amount"}
                                   className="w-full text-xs bg-surface border border-outline-variant rounded px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
                                 />
                               </div>
@@ -649,7 +750,9 @@ export default function SimulatorPage() {
 
                             {/* Order Reference input */}
                             <div className="w-full">
-                              <label className="block text-[10px] text-secondary mb-0.5">Ref Orden:</label>
+                              <label className="block text-[10px] text-secondary mb-0.5">
+                                {language === "es" ? "Ref Orden:" : "Order Ref:"}
+                              </label>
                               <div className="flex items-center gap-1">
                                 <input
                                   type="text"
@@ -659,7 +762,7 @@ export default function SimulatorPage() {
                                     updated[idx].orderRef = e.target.value;
                                     setCartItems(updated);
                                   }}
-                                  placeholder="UUID o ID Orden"
+                                  placeholder={language === "es" ? "UUID o ID Orden" : "UUID or Order ID"}
                                   className="w-full text-[10px] font-mono bg-surface border border-outline-variant rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
                                 />
                                 <Button
@@ -670,7 +773,7 @@ export default function SimulatorPage() {
                                     updated[idx].orderRef = generateUUID();
                                     setCartItems(updated);
                                   }}
-                                  title="Generar nuevo UUID"
+                                  title={language === "es" ? "Generar nuevo UUID" : "Generate new UUID"}
                                 >
                                   ⚡
                                 </Button>
@@ -698,7 +801,7 @@ export default function SimulatorPage() {
                   Total Checkout: <strong className="text-on-surface">${cartItems.reduce((acc, curr) => acc + curr.amount, 0)} ARS</strong>
                 </span>
                 <Button variant="primary" onClick={handleSimulateCheckout} disabled={checkoutLoading}>
-                  {checkoutLoading ? "Procesando..." : "💳 Enviar Checkout (POST)"}
+                  {checkoutLoading ? (language === "es" ? "Procesando..." : "Processing...") : (language === "es" ? "💳 Enviar Checkout (POST)" : "💳 Send Checkout (POST)")}
                 </Button>
               </div>
 
@@ -706,13 +809,17 @@ export default function SimulatorPage() {
               {(checkoutPayload || checkoutResponse) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-surface-container/50 text-xs">
                   <div>
-                    <span className="text-label-sm text-secondary block mb-1">Payload Enviado</span>
+                    <span className="text-label-sm text-secondary block mb-1">
+                      {language === "es" ? "Payload Enviado" : "Sent Payload"}
+                    </span>
                     <pre className="p-3 bg-surface-low rounded border border-outline-variant/60 font-mono text-[10px] overflow-auto max-h-40">
                       {JSON.stringify(checkoutPayload, null, 2)}
                     </pre>
                   </div>
                   <div>
-                    <span className="text-label-sm text-secondary block mb-1">Respuesta del Servidor</span>
+                    <span className="text-label-sm text-secondary block mb-1">
+                      {language === "es" ? "Respuesta del Servidor" : "Server Response"}
+                    </span>
                     <pre className={`p-3 rounded border font-mono text-[10px] overflow-auto max-h-40 ${
                       checkoutResponse?.error ? "bg-error-container/40 border-error/20 text-error" : "bg-success-container/40 border-success/20 text-on-surface"
                     }`}>
@@ -726,7 +833,7 @@ export default function SimulatorPage() {
                           rel="noreferrer"
                           className="inline-block bg-primary text-on-primary text-[11px] font-medium px-3 py-1.5 rounded hover:bg-primary-container text-center flex-1"
                         >
-                          Ir a Pagar (Mercado Pago Sandbox)
+                          {language === "es" ? "Ir a Pagar (Mercado Pago Sandbox)" : "Go to Pay (Mercado Pago Sandbox)"}
                         </a>
                         <Button
                           variant="secondary"
@@ -735,13 +842,18 @@ export default function SimulatorPage() {
                             const link = getSandboxUrl(checkoutResponse.sandboxUrl || checkoutResponse.checkoutUrl);
                             const copied = copyToClipboard(link);
                             if (copied) {
-                              triggerToast("Link de pago (Sandbox) copiado al portapapeles.", "success");
+                              triggerToast(
+                                language === "es"
+                                  ? "Link de pago (Sandbox) copiado al portapapeles."
+                                  : "Payment link (Sandbox) copied to clipboard.",
+                                "success"
+                              );
                             } else {
-                              triggerToast("No se pudo copiar el link.", "error");
+                              triggerToast(language === "es" ? "No se pudo copiar el link." : "Failed to copy link.", "error");
                             }
                           }}
                         >
-                          📋 Copiar Link
+                          {language === "es" ? "📋 Copiar Link" : "📋 Copy Link"}
                         </Button>
                       </div>
                     )}
@@ -759,46 +871,58 @@ export default function SimulatorPage() {
         <div className="lg:col-span-1 space-y-6">
           <Card className="ghost-border shadow-ambient-sm h-full flex flex-col">
             <CardHeader className="border-b border-surface-container/50">
-              <CardTitle className="text-headline-md">2. Simular Webhook (Notificación MP)</CardTitle>
+              <CardTitle className="text-headline-md">
+                {language === "es" ? "2. Simular Webhook (Notificación MP)" : "2. Simulate Webhook (MP Notification)"}
+              </CardTitle>
               <CardDescription>
-                Simula que Mercado Pago notifica el resultado del pago. Actualiza el estado a HELD/REJECTED y dispara el webhook saliente a la Seller App.
+                {language === "es"
+                  ? "Simula que Mercado Pago notifica el resultado del pago. Actualiza el estado a HELD/REJECTED y dispara el webhook saliente a la Seller App."
+                  : "Simulates Mercado Pago notifying the payment result. Updates the status to HELD/REJECTED and triggers the outgoing webhook to the Seller App."}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4 flex-1 flex flex-col justify-between">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-label-sm text-secondary mb-1">ID Sesión de Cobro (external_reference)</label>
+                  <label className="block text-label-sm text-secondary mb-1">
+                    {language === "es" ? "ID Sesión de Cobro (external_reference)" : "Payment Session ID (external_reference)"}
+                  </label>
                   <input
                     type="text"
                     value={sessionIdToPay}
                     onChange={(e) => setSessionIdToPay(e.target.value)}
-                    placeholder="cuid o id de la sesión..."
+                    placeholder={language === "es" ? "cuid o id de la sesión..." : "cuid or session ID..."}
                     className="w-full text-xs font-mono rounded border border-outline-variant bg-surface px-3 py-2 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                   <p className="text-[10px] text-on-surface-muted mt-1">
-                    Copia y pega un ID de la lista de transacciones recientes o crea un checkout arriba.
+                    {language === "es"
+                      ? "Copia y pega un ID de la lista de transacciones recientes o crea un checkout arriba."
+                      : "Copy and paste an ID from the recent transactions list or create a checkout above."}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-label-sm text-secondary mb-1">Estado de Pago</label>
+                    <label className="block text-label-sm text-secondary mb-1">
+                      {language === "es" ? "Estado de Pago" : "Payment Status"}
+                    </label>
                     <select
                       value={mockStatus}
                       onChange={(e) => setMockStatus(e.target.value)}
                       className="w-full text-xs rounded border border-outline-variant bg-surface px-2 py-1.5 text-on-surface focus:outline-none"
                     >
-                      <option value="approved">Aprobado (approved)</option>
-                      <option value="rejected">Rechazado (rejected)</option>
+                      <option value="approved">{language === "es" ? "Aprobado (approved)" : "Approved (approved)"}</option>
+                      <option value="rejected">{language === "es" ? "Rechazado (rejected)" : "Rejected (rejected)"}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-label-sm text-secondary mb-1">Monto (Opcional)</label>
+                    <label className="block text-label-sm text-secondary mb-1">
+                      {language === "es" ? "Monto (Opcional)" : "Amount (Optional)"}
+                    </label>
                     <input
                       type="number"
                       value={mockAmount}
                       onChange={(e) => setMockAmount(e.target.value)}
-                      placeholder="Monto final..."
+                      placeholder={language === "es" ? "Monto final..." : "Final amount..."}
                       className="w-full text-xs rounded border border-outline-variant bg-surface px-2 py-1.5 text-on-surface focus:outline-none"
                     />
                   </div>
@@ -812,7 +936,9 @@ export default function SimulatorPage() {
                   onClick={handleSimulateWebhook}
                   disabled={webhookLoading}
                 >
-                  {webhookLoading ? "Simulando pago..." : `⚡ Disparar Webhook (${mockStatus.toUpperCase()})`}
+                  {webhookLoading
+                    ? (language === "es" ? "Simulando pago..." : "Simulating payment...")
+                    : `⚡ ${language === "es" ? "Disparar Webhook" : "Trigger Webhook"} (${mockStatus.toUpperCase()})`}
                 </Button>
 
                 {(webhookPayload || webhookResponse) && (
@@ -838,17 +964,21 @@ export default function SimulatorPage() {
             <CardHeader className="border-b border-surface-container/50 pb-2">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div>
-                  <CardTitle className="text-headline-md">Visualizador del Estado en la DB</CardTitle>
+                  <CardTitle className="text-headline-md">
+                    {language === "es" ? "Visualizador del Estado en la DB" : "DB State Inspector"}
+                  </CardTitle>
                   <CardDescription>
-                    Monitorea los registros asociados a tus usuarios simulados en tiempo real.
+                    {language === "es"
+                      ? "Monitorea los registros asociados a tus usuarios simulados en tiempo real."
+                      : "Monitor records associated with your simulated users in real time."}
                   </CardDescription>
                 </div>
                 <div className="flex bg-surface-container rounded p-0.5 self-start">
                   {[
-                    { id: "tx", label: "Transacciones" },
-                    { id: "wallet", label: "Wallets" },
-                    { id: "ledger", label: "Libro Mayor" },
-                    { id: "session", label: "Sesiones" },
+                    { id: "tx", label: language === "es" ? "Transacciones" : "Transactions" },
+                    { id: "wallet", label: language === "es" ? "Wallets" : "Wallets" },
+                    { id: "ledger", label: language === "es" ? "Libro Mayor" : "Ledger" },
+                    { id: "session", label: language === "es" ? "Sesiones" : "Sessions" },
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -868,7 +998,7 @@ export default function SimulatorPage() {
             <CardContent className="pt-4 flex-1 overflow-auto max-h-[500px]">
               {inspectorLoading ? (
                 <div className="text-center py-20 text-on-surface-muted text-sm animate-pulse-soft">
-                  Cargando estado actual de la base de datos...
+                  {language === "es" ? "Cargando estado actual de la base de datos..." : "Loading current database state..."}
                 </div>
               ) : (
                 <div className="text-xs">
@@ -878,12 +1008,24 @@ export default function SimulatorPage() {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="border-b border-surface-container pb-2 text-on-surface-muted">
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Orden ID</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Monto</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Comprador</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Vendedor</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Estado</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Acción</th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Orden ID" : "Order ID"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Monto" : "Amount"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Comprador" : "Buyer"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Vendedor" : "Seller"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Estado" : "Status"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Acción" : "Action"}
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -896,7 +1038,7 @@ export default function SimulatorPage() {
                               <td className="py-3">{getUserName(tx.buyerId)}</td>
                               <td className="py-3">{getUserName(tx.sellerId)}</td>
                               <td className="py-3">
-                                <StatusBadge status={tx.status} size="sm" />
+                                <StatusBadge status={tx.status} size="sm" locale={language} />
                               </td>
                               <td className="py-3">
                                 <div className="flex items-center gap-2">
@@ -908,14 +1050,24 @@ export default function SimulatorPage() {
                                       setSessionIdToPay(tx.checkoutSessionId);
                                       const copied = copyToClipboard(tx.checkoutSessionId);
                                       if (copied) {
-                                        triggerToast(`ID copiado y cargado: ${tx.checkoutSessionId}`, "success");
+                                        triggerToast(
+                                          language === "es"
+                                            ? `ID copiado y cargado: ${tx.checkoutSessionId}`
+                                            : `ID copied and loaded: ${tx.checkoutSessionId}`,
+                                          "success"
+                                        );
                                       } else {
-                                        triggerToast(`Cargada sesión: ${tx.checkoutSessionId}`, "info");
+                                        triggerToast(
+                                          language === "es"
+                                            ? `Cargada sesión: ${tx.checkoutSessionId}`
+                                            : `Session loaded: ${tx.checkoutSessionId}`,
+                                          "info"
+                                        );
                                       }
                                     }}
-                                    title="Copiar ID de sesión al portapapeles y cargar en el formulario"
+                                    title={language === "es" ? "Copiar ID de sesión al portapapeles y cargar en el formulario" : "Copy session ID to clipboard and load into the form"}
                                   >
-                                    Copiar Sesión
+                                    {language === "es" ? "Copiar Sesión" : "Copy Session"}
                                   </Button>
                                   {tx.status === "HELD" && (
                                     <Button
@@ -924,9 +1076,11 @@ export default function SimulatorPage() {
                                       className="h-6 px-2 text-[10px] bg-amber-600/10 text-amber-600 border border-amber-600/25 hover:bg-amber-600 hover:text-white transition-all font-medium flex items-center gap-1"
                                       onClick={() => handleSimulateDelivery(tx.orderId)}
                                       disabled={deliveryLoading === tx.orderId}
-                                      title="Simular entrega del producto (mueve transacción a DELIVERED)"
+                                      title={language === "es" ? "Simular entrega del producto (mueve transacción a DELIVERED)" : "Simulate product delivery (moves transaction to DELIVERED)"}
                                     >
-                                      {deliveryLoading === tx.orderId ? "Enviando..." : "🚚 Entregar"}
+                                      {deliveryLoading === tx.orderId
+                                        ? (language === "es" ? "Enviando..." : "Sending...")
+                                        : (language === "es" ? "🚚 Entregar" : "🚚 Deliver")}
                                     </Button>
                                   )}
                                 </div>
@@ -936,7 +1090,9 @@ export default function SimulatorPage() {
                           {dbInspector.transactions.length === 0 && (
                             <tr>
                               <td colSpan={6} className="text-center py-10 text-on-surface-muted">
-                                No se encontraron transacciones para los usuarios configurados.
+                                {language === "es"
+                                  ? "No se encontraron transacciones para los usuarios configurados."
+                                  : "No transactions found for the configured users."}
                               </td>
                             </tr>
                           )}
@@ -951,10 +1107,16 @@ export default function SimulatorPage() {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="border-b border-surface-container pb-2 text-on-surface-muted">
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Usuario</th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Usuario" : "User"}
+                            </th>
                             <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Clerk ID</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Saldo Retenido (HELD)</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Saldo Disponible</th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Saldo Retenido (HELD)" : "Held Balance (Escrow)"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Saldo Disponible" : "Available Balance"}
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -969,7 +1131,9 @@ export default function SimulatorPage() {
                           {dbInspector.wallets.length === 0 && (
                             <tr>
                               <td colSpan={4} className="text-center py-10 text-on-surface-muted">
-                                No hay billeteras inicializadas aún. Se crean automáticamente al recibir el primer pago aprobado.
+                                {language === "es"
+                                  ? "No hay billeteras inicializadas aún. Se crean automáticamente al recibir el primer pago aprobado."
+                                  : "No wallets initialized yet. They are created automatically upon receiving the first approved payment."}
                               </td>
                             </tr>
                           )}
@@ -984,11 +1148,21 @@ export default function SimulatorPage() {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="border-b border-surface-container pb-2 text-on-surface-muted">
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Usuario</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Tipo</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Monto</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Descripción</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Fecha</th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Usuario" : "User"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Tipo" : "Type"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Monto" : "Amount"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Descripción" : "Description"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Fecha" : "Date"}
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -999,7 +1173,9 @@ export default function SimulatorPage() {
                                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${
                                   ledger.type === "CREDIT" ? "bg-success-container text-success" : "bg-error-container text-error"
                                 }`}>
-                                  {ledger.type}
+                                  {ledger.type === "CREDIT"
+                                    ? (language === "es" ? "CRÉDITO" : "CREDIT")
+                                    : (language === "es" ? "DÉBITO" : "DEBIT")}
                                 </span>
                               </td>
                               <td className="py-3 font-medium">${Number(ledger.amount)} ARS</td>
@@ -1012,7 +1188,9 @@ export default function SimulatorPage() {
                           {dbInspector.ledgerEntries.length === 0 && (
                             <tr>
                               <td colSpan={5} className="text-center py-10 text-on-surface-muted">
-                                No hay registros contables en el libro mayor.
+                                {language === "es"
+                                  ? "No hay registros contables en el libro mayor."
+                                  : "No accounting ledger entries found."}
                               </td>
                             </tr>
                           )}
@@ -1028,12 +1206,24 @@ export default function SimulatorPage() {
                         <thead>
                           <tr className="border-b border-surface-container pb-2 text-on-surface-muted">
                             <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Checkout Session ID</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Comprador</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Monto Total</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Estado</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Link de Pago</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Acciones</th>
-                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Fecha</th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Comprador" : "Buyer"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Monto Total" : "Total Amount"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Estado" : "Status"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Link de Pago" : "Payment Link"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Acciones" : "Actions"}
+                            </th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">
+                              {language === "es" ? "Fecha" : "Date"}
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1043,7 +1233,7 @@ export default function SimulatorPage() {
                               <td className="py-3">{getUserName(session.buyerId)}</td>
                               <td className="py-3 font-medium">${Number(session.totalAmount)} ARS</td>
                               <td className="py-3">
-                                <StatusBadge status={session.status} size="sm" />
+                                <StatusBadge status={session.status} size="sm" locale={language} />
                               </td>
                               <td className="py-3">
                                 {session.payments?.[0]?.checkoutUrl ? (
@@ -1053,9 +1243,9 @@ export default function SimulatorPage() {
                                       target="_blank"
                                       rel="noreferrer"
                                       className="text-primary hover:underline font-semibold text-[11px]"
-                                      title="Pagar en Mercado Pago Sandbox"
+                                      title={language === "es" ? "Pagar en Mercado Pago Sandbox" : "Pay in Mercado Pago Sandbox"}
                                     >
-                                      💳 Pagar MP (Sandbox)
+                                      💳 {language === "es" ? "Pagar MP (Sandbox)" : "Pay MP (Sandbox)"}
                                     </a>
                                     <Button
                                       variant="ghost"
@@ -1065,18 +1255,25 @@ export default function SimulatorPage() {
                                         const link = getSandboxUrl(session.payments[0].checkoutUrl);
                                         const copied = copyToClipboard(link);
                                         if (copied) {
-                                          triggerToast("Link de pago (Sandbox) copiado al portapapeles.", "success");
+                                          triggerToast(
+                                            language === "es"
+                                              ? "Link de pago (Sandbox) copiado al portapapeles."
+                                              : "Payment link (Sandbox) copied to clipboard.",
+                                            "success"
+                                          );
                                         } else {
-                                          triggerToast("No se pudo copiar el link.", "error");
+                                          triggerToast(language === "es" ? "No se pudo copiar el link." : "Failed to copy link.", "error");
                                         }
                                       }}
-                                      title="Copiar link de pago Sandbox al portapapeles"
+                                      title={language === "es" ? "Copiar link de pago Sandbox al portapapeles" : "Copy Sandbox payment link to clipboard"}
                                     >
                                       📋
                                     </Button>
                                   </div>
                                 ) : (
-                                  <span className="text-on-surface-muted italic text-[10px]">Sin link</span>
+                                  <span className="text-on-surface-muted italic text-[10px]">
+                                    {language === "es" ? "Sin link" : "No link"}
+                                  </span>
                                 )}
                               </td>
                               <td className="py-3">
@@ -1088,14 +1285,24 @@ export default function SimulatorPage() {
                                     setSessionIdToPay(session.id);
                                     const copied = copyToClipboard(session.id);
                                     if (copied) {
-                                      triggerToast(`ID copiado al portapapeles y cargado: ${session.id}`, "success");
+                                      triggerToast(
+                                        language === "es"
+                                          ? `ID copiado al portapapeles y cargado: ${session.id}`
+                                          : `ID copied to clipboard and loaded: ${session.id}`,
+                                        "success"
+                                      );
                                     } else {
-                                      triggerToast(`Cargada sesión: ${session.id}`, "info");
+                                      triggerToast(
+                                        language === "es"
+                                          ? `Cargada sesión: ${session.id}`
+                                          : `Session loaded: ${session.id}`,
+                                        "info"
+                                      );
                                     }
                                   }}
-                                  title="Copiar ID de sesión al portapapeles y cargar en el formulario"
+                                  title={language === "es" ? "Copiar ID de sesión al portapapeles y cargar en el formulario" : "Copy session ID to clipboard and load into the form"}
                                 >
-                                  Copiar ID
+                                  {language === "es" ? "Copiar ID" : "Copy ID"}
                                 </Button>
                               </td>
                               <td className="py-3 text-on-surface-muted text-[10px]">
@@ -1106,7 +1313,7 @@ export default function SimulatorPage() {
                           {dbInspector.checkoutSessions.length === 0 && (
                             <tr>
                               <td colSpan={7} className="text-center py-10 text-on-surface-muted">
-                                No se encontraron sesiones de checkout.
+                                {language === "es" ? "No se encontraron sesiones de checkout." : "No checkout sessions found."}
                               </td>
                             </tr>
                           )}
