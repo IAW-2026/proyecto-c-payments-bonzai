@@ -8,7 +8,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 interface SimulatedUser {
   id: string;
   name: string;
-  role: string;
+  email: string;
+  roles: string[];
 }
 
 interface CartItem {
@@ -16,7 +17,6 @@ interface CartItem {
   sellerId: string;
   amount: number;
   orderRef: string;
-  description: string;
 }
 
 // Prefilled botanical items for random description generator
@@ -34,12 +34,61 @@ const PLANT_DESCRIPTIONS = [
 ];
 
 const DEFAULT_USERS: SimulatedUser[] = [
-  { id: "user_2tW6XfVp9s1QyZnRwKm7j4aBcDe", name: "Juan (Comprador)", role: "buyer" },
-  { id: "user_2uB8YgTq0t2RxAoSxLn8k5bCdEf", name: "María (Vendedora)", role: "seller" },
-  { id: "user_2vC9ZhUr1u3SyBpTyMn9l6cDeFg", name: "Carlos (Plantas)", role: "seller" },
-  { id: "user_2wD0AiVs2v4TzCqUzNo0m7dEfGh", name: "Ana (Botánica)", role: "seller" },
-  { id: "user_2xE1BjWt3w5UaDrVaOp1n8eFgHi", name: "Lucas (Macetas)", role: "seller" },
+  {
+    id: "54d72c7a-8229-4261-aa3d-596afd4bbe88",
+    name: "Usuario 1",
+    email: "usuario1@bonzai.com",
+    roles: ["buyer"]
+  },
+  {
+    id: "user_3FbgwHxAYvlQ4KzQWYYkYPrqzIM",
+    name: "Usuario 11",
+    email: "usuario11@bonzai.com",
+    roles: ["seller", "shipping"]
+  }
 ];
+
+// Helper to dynamically translate any Mercado Pago production URL to Sandbox
+const getSandboxUrl = (url: string | null): string => {
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("mercadopago.com")) {
+      parsed.hostname = "sandbox.mercadopago.com.ar";
+    }
+    return parsed.toString();
+  } catch {
+    return url
+      .replace("www.mercadopago.com.ar", "sandbox.mercadopago.com.ar")
+      .replace("www.mercadopago.com", "sandbox.mercadopago.com.ar");
+  }
+};
+
+// Robust helper to copy to clipboard with execCommand fallback if navigator.clipboard is unavailable
+const copyToClipboard = (text: string): boolean => {
+  try {
+    if (typeof window !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (_) {}
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const successful = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return successful;
+  } catch (err) {
+    console.error("Clipboard copy fallback failed", err);
+    return false;
+  }
+};
 
 export default function SimulatorPage() {
   // ── State ──
@@ -102,14 +151,13 @@ export default function SimulatorPage() {
 
   // Helper: Add randomized checkout cart item
   const addRandomCartItem = () => {
-    const sellers = users.filter((u) => u.id !== selectedBuyer);
-    const seller = sellers.length > 0 ? sellers[Math.floor(Math.random() * sellers.length)] : users[0];
+    const sellers = users.filter((u) => u.roles && u.roles.includes("seller") && u.id !== selectedBuyer);
+    const seller = sellers.length > 0 ? sellers[Math.floor(Math.random() * sellers.length)] : null;
     const newItem: CartItem = {
       id: Math.random().toString(36).substring(7),
       sellerId: seller?.id || "",
       amount: Math.floor(Math.random() * 4500) + 500, // $500 to $5000 ARS
       orderRef: generateUUID(),
-      description: getRandomDescription(),
     };
     setCartItems([...cartItems, newItem]);
   };
@@ -131,6 +179,31 @@ export default function SimulatorPage() {
     }
   }, [users]);
 
+  // Fetch dynamic users from Clerk
+  const syncUsersWithClerk = useCallback(async (showToast = false) => {
+    try {
+      const response = await fetch("/api/simulator/users");
+      if (!response.ok) throw new Error("No se pudo obtener la lista de usuarios desde Clerk.");
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        localStorage.setItem("bonzai_simulator_users", JSON.stringify(data));
+        setUsers(data);
+        setEditUsers(data);
+        if (showToast) {
+          triggerToast(`Sincronizados ${data.length} usuarios con Clerk.`, "success");
+        }
+      } else {
+        if (showToast) {
+          triggerToast("La lista de usuarios obtenida está vacía o no tiene roles.", "info");
+        }
+      }
+    } catch (err: any) {
+      if (showToast) {
+        triggerToast(err.message || "Error al sincronizar con Clerk.", "error");
+      }
+    }
+  }, []);
+
   // Load / Save users from localstorage
   useEffect(() => {
     const saved = localStorage.getItem("bonzai_simulator_users");
@@ -148,14 +221,30 @@ export default function SimulatorPage() {
       setUsers(DEFAULT_USERS);
       setEditUsers(DEFAULT_USERS);
     }
-  }, []);
+    // Auto-sync with Clerk on mount silently
+    syncUsersWithClerk(false);
+  }, [syncUsersWithClerk]);
 
+  // Set default buyer when users are loaded
   // Set default buyer when users are loaded
   useEffect(() => {
     if (users.length > 0 && !selectedBuyer) {
-      setSelectedBuyer(users[0].id);
+      const defaultBuyer = users.find(u => u.roles && u.roles.includes("buyer"));
+      if (defaultBuyer) {
+        setSelectedBuyer(defaultBuyer.id);
+      }
     }
   }, [users, selectedBuyer]);
+
+  // Autocomplete buyer email when selectedBuyer changes
+  useEffect(() => {
+    if (selectedBuyer && users.length > 0) {
+      const buyerUser = users.find((u) => u.id === selectedBuyer);
+      if (buyerUser && buyerUser.email) {
+        setBuyerEmail(buyerUser.email);
+      }
+    }
+  }, [selectedBuyer, users]);
 
   // Sync database state whenever users list changes or mounts
   useEffect(() => {
@@ -189,7 +278,7 @@ export default function SimulatorPage() {
         sellerId: item.sellerId,
         amount: Number(item.amount),
         orderRef: item.orderRef,
-        description: item.description,
+        description: `Orden de pago ${item.orderRef.substring(0, 8)}`,
       })),
     };
 
@@ -317,9 +406,19 @@ export default function SimulatorPage() {
                   <CardDescription>Establece tus 5 IDs reales de Clerk o mocks</CardDescription>
                 </div>
                 {!isEditingUsers && (
-                  <Button variant="ghost" size="sm" onClick={() => setIsEditingUsers(true)}>
-                    ✏️ Editar
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => syncUsersWithClerk(true)}
+                      title="Sincronizar con los usuarios generados de Clerk"
+                    >
+                      🔄 Sincronizar
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setIsEditingUsers(true)}>
+                      ✏️ Editar
+                    </Button>
+                  </div>
                 )}
               </div>
             </CardHeader>
@@ -331,7 +430,7 @@ export default function SimulatorPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-label-sm text-secondary">Usuario {idx + 1}</span>
                         <span className="text-xs uppercase font-mono px-1.5 py-0.5 rounded bg-surface-container text-on-surface-muted">
-                          {user.role}
+                          {user.roles ? user.roles.join(", ") : ""}
                         </span>
                       </div>
                       <input
@@ -343,6 +442,28 @@ export default function SimulatorPage() {
                           setEditUsers(updated);
                         }}
                         placeholder="Nombre / Alias"
+                        className="w-full text-xs bg-surface-lowest border border-outline-variant rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <input
+                        type="text"
+                        value={user.email || ""}
+                        onChange={(e) => {
+                          const updated = [...editUsers];
+                          updated[idx].email = e.target.value;
+                          setEditUsers(updated);
+                        }}
+                        placeholder="Email de Clerk"
+                        className="w-full text-xs bg-surface-lowest border border-outline-variant rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <input
+                        type="text"
+                        value={user.roles ? user.roles.join(", ") : ""}
+                        onChange={(e) => {
+                          const updated = [...editUsers];
+                          updated[idx].roles = e.target.value.split(",").map(r => r.trim()).filter(r => r.length > 0);
+                          setEditUsers(updated);
+                        }}
+                        placeholder="Roles (separados por coma)"
                         className="w-full text-xs bg-surface-lowest border border-outline-variant rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                       <input
@@ -373,13 +494,28 @@ export default function SimulatorPage() {
                     <div key={user.id} className="flex flex-col p-2.5 bg-surface-low/60 rounded border border-surface-container transition-all hover:bg-surface-low">
                       <div className="flex items-center justify-between">
                         <span className="text-body-sm font-semibold text-on-surface">{user.name}</span>
-                        <span className={`text-[10px] uppercase font-mono px-1.5 py-0.5 rounded ${
-                          user.role === "buyer" ? "bg-primary-container text-on-primary-container" : "bg-secondary-container text-on-secondary-container"
-                        }`}>
-                          {user.role === "buyer" ? "Comprador" : "Vendedor"}
-                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles && user.roles.map((role) => (
+                            <span key={role} className={`text-[9px] font-bold uppercase font-mono px-1.5 py-0.5 rounded ${
+                              role === "buyer"
+                                ? "bg-blue-600 text-white"
+                                : role === "seller"
+                                  ? "bg-emerald-600 text-white"
+                                  : role === "shipping"
+                                    ? "bg-amber-600 text-white"
+                                    : role === "payments"
+                                      ? "bg-purple-600 text-white"
+                                      : "bg-gray-600 text-white"
+                            }`}>
+                              {role}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                       <span className="text-xs font-mono text-on-surface-muted break-all mt-1">{user.id}</span>
+                      {user.email && (
+                        <span className="text-[11px] text-secondary mt-0.5">{user.email}</span>
+                      )}
                     </div>
                   ))}
                   <p className="text-[11px] text-on-surface-muted mt-2 italic text-center">
@@ -410,9 +546,9 @@ export default function SimulatorPage() {
                     onChange={(e) => setSelectedBuyer(e.target.value)}
                     className="w-full text-xs rounded border border-outline-variant bg-surface px-3 py-2 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    {users.map((u) => (
+                    {users.filter(u => u.roles && u.roles.includes("buyer")).map((u) => (
                       <option key={u.id} value={u.id}>
-                        {u.name} ({u.id.substring(0, 10)}...)
+                        {u.name} ({u.email})
                       </option>
                     ))}
                   </select>
@@ -431,52 +567,25 @@ export default function SimulatorPage() {
               {/* Cart Items Area */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center border-b border-surface-container pb-2">
-                  <span className="text-body-sm font-semibold text-on-surface">Carrito / Items a comprar</span>
+                  <span className="text-body-sm font-semibold text-on-surface">Carrito / Órdenes a comprar</span>
                   <Button variant="secondary" size="sm" onClick={addRandomCartItem}>
-                    ➕ Agregar Item
+                    ➕ Agregar Orden
                   </Button>
                 </div>
 
                 {cartItems.length === 0 ? (
                   <div className="text-center py-6 bg-surface-low/40 rounded border border-dashed border-outline-variant/60">
-                    <p className="text-body-sm text-on-surface-muted">El carrito está vacío. Agrega ítems botánicos para simular el cobro.</p>
+                    <p className="text-body-sm text-on-surface-muted">El carrito está vacío. Agrega órdenes para simular el cobro.</p>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                     {cartItems.map((item, idx) => (
                       <div key={item.id} className="p-3 bg-surface-low/80 rounded border border-surface-container flex flex-col md:flex-row gap-3 items-start md:items-center">
                         <div className="flex-1 space-y-2 w-full">
-                          <div className="flex flex-col md:flex-row gap-2">
-                            <input
-                              type="text"
-                              value={item.description}
-                              onChange={(e) => {
-                                const updated = [...cartItems];
-                                updated[idx].description = e.target.value;
-                                setCartItems(updated);
-                              }}
-                              placeholder="Descripción del ítem botánico"
-                              className="flex-[2] text-xs bg-surface border border-outline-variant rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                            />
-                            <div className="flex flex-1 items-center gap-1.5">
-                              <span className="text-xs text-on-surface-muted">$</span>
-                              <input
-                                type="number"
-                                value={item.amount}
-                                onChange={(e) => {
-                                  const updated = [...cartItems];
-                                  updated[idx].amount = Number(e.target.value);
-                                  setCartItems(updated);
-                                }}
-                                placeholder="Precio"
-                                className="w-full text-xs bg-surface border border-outline-variant rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-col md:flex-row gap-2 justify-between items-start md:items-center">
-                            <div className="flex items-center gap-1.5 w-full md:w-auto">
-                              <span className="text-[10px] text-secondary">Vendedor:</span>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                            {/* Seller Selection */}
+                            <div className="w-full">
+                              <label className="block text-[10px] text-secondary mb-0.5">Vendedor:</label>
                               <select
                                 value={item.sellerId}
                                 onChange={(e) => {
@@ -484,41 +593,64 @@ export default function SimulatorPage() {
                                   updated[idx].sellerId = e.target.value;
                                   setCartItems(updated);
                                 }}
-                                className="text-[11px] rounded border border-outline-variant bg-surface px-2 py-1 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full text-[11px] rounded border border-outline-variant bg-surface px-2 py-1.5 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
                               >
-                                {users.filter((u) => u.id !== selectedBuyer).map((u) => (
+                                <option value="">Seleccionar Vendedor</option>
+                                {users.filter((u) => u.roles && u.roles.includes("seller") && u.id !== selectedBuyer).map((u) => (
                                   <option key={u.id} value={u.id}>
-                                    {u.name}
+                                    {u.name} ({u.email})
                                   </option>
                                 ))}
                               </select>
                             </div>
-                            
-                            <div className="flex items-center gap-1 w-full md:w-auto">
-                              <span className="text-[10px] text-secondary font-mono">Ref:</span>
-                              <input
-                                type="text"
-                                value={item.orderRef}
-                                onChange={(e) => {
-                                  const updated = [...cartItems];
-                                  updated[idx].orderRef = e.target.value;
-                                  setCartItems(updated);
-                                }}
-                                placeholder="UUID o ID Orden"
-                                className="w-full md:w-56 text-[10px] font-mono bg-surface border border-outline-variant rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
-                              />
-                              <Button
-                                variant="ghost"
-                                className="h-6 px-1.5 text-[9px]"
-                                onClick={() => {
-                                  const updated = [...cartItems];
-                                  updated[idx].orderRef = generateUUID();
-                                  setCartItems(updated);
-                                }}
-                                title="Generar nuevo UUID"
-                              >
-                                ⚡
-                              </Button>
+
+                            {/* Amount input */}
+                            <div className="w-full">
+                              <label className="block text-[10px] text-secondary mb-0.5">Monto ($ ARS):</label>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-on-surface-muted">$</span>
+                                <input
+                                  type="number"
+                                  value={item.amount}
+                                  onChange={(e) => {
+                                    const updated = [...cartItems];
+                                    updated[idx].amount = Number(e.target.value);
+                                    setCartItems(updated);
+                                  }}
+                                  placeholder="Monto"
+                                  className="w-full text-xs bg-surface border border-outline-variant rounded px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Order Reference input */}
+                            <div className="w-full">
+                              <label className="block text-[10px] text-secondary mb-0.5">Ref Orden:</label>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={item.orderRef}
+                                  onChange={(e) => {
+                                    const updated = [...cartItems];
+                                    updated[idx].orderRef = e.target.value;
+                                    setCartItems(updated);
+                                  }}
+                                  placeholder="UUID o ID Orden"
+                                  className="w-full text-[10px] font-mono bg-surface border border-outline-variant rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  className="h-6 px-1.5 text-[9px]"
+                                  onClick={() => {
+                                    const updated = [...cartItems];
+                                    updated[idx].orderRef = generateUUID();
+                                    setCartItems(updated);
+                                  }}
+                                  title="Generar nuevo UUID"
+                                >
+                                  ⚡
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -565,13 +697,28 @@ export default function SimulatorPage() {
                     {checkoutResponse?.checkoutUrl && (
                       <div className="mt-2 flex gap-2">
                         <a
-                          href={checkoutResponse.checkoutUrl}
+                          href={getSandboxUrl(checkoutResponse.sandboxUrl || checkoutResponse.checkoutUrl)}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-block bg-primary text-on-primary text-[11px] font-medium px-3 py-1.5 rounded hover:bg-primary-container text-center flex-1"
                         >
-                          Ir a Pagar (Mercado Pago)
+                          Ir a Pagar (Mercado Pago Sandbox)
                         </a>
+                        <Button
+                          variant="secondary"
+                          className="text-[11px] px-3 py-1.5"
+                          onClick={() => {
+                            const link = getSandboxUrl(checkoutResponse.sandboxUrl || checkoutResponse.checkoutUrl);
+                            const copied = copyToClipboard(link);
+                            if (copied) {
+                              triggerToast("Link de pago (Sandbox) copiado al portapapeles.", "success");
+                            } else {
+                              triggerToast("No se pudo copiar el link.", "error");
+                            }
+                          }}
+                        >
+                          📋 Copiar Link
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -734,9 +881,14 @@ export default function SimulatorPage() {
                                   className="h-6 px-2 text-[10px]"
                                   onClick={() => {
                                     setSessionIdToPay(tx.checkoutSessionId);
-                                    triggerToast(`Copiada CheckoutSession: ${tx.checkoutSessionId}`, "info");
+                                    const copied = copyToClipboard(tx.checkoutSessionId);
+                                    if (copied) {
+                                      triggerToast(`ID copiado y cargado: ${tx.checkoutSessionId}`, "success");
+                                    } else {
+                                      triggerToast(`Cargada sesión: ${tx.checkoutSessionId}`, "info");
+                                    }
                                   }}
-                                  title="Copiar sesión de pago para el simulador"
+                                  title="Copiar ID de sesión al portapapeles y cargar en el formulario"
                                 >
                                   Copiar Sesión
                                 </Button>
@@ -841,6 +993,8 @@ export default function SimulatorPage() {
                             <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Comprador</th>
                             <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Monto Total</th>
                             <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Estado</th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Link de Pago</th>
+                            <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Acciones</th>
                             <th className="py-2 text-[10px] font-semibold text-secondary uppercase tracking-wider">Fecha</th>
                           </tr>
                         </thead>
@@ -853,6 +1007,59 @@ export default function SimulatorPage() {
                               <td className="py-3">
                                 <StatusBadge status={session.status} size="sm" />
                               </td>
+                              <td className="py-3">
+                                {session.payments?.[0]?.checkoutUrl ? (
+                                  <div className="flex items-center gap-2">
+                                    <a
+                                      href={getSandboxUrl(session.payments[0].checkoutUrl)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-primary hover:underline font-semibold text-[11px]"
+                                      title="Pagar en Mercado Pago Sandbox"
+                                    >
+                                      💳 Pagar MP (Sandbox)
+                                    </a>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 w-5 p-0 text-secondary hover:bg-surface-low"
+                                      onClick={() => {
+                                        const link = getSandboxUrl(session.payments[0].checkoutUrl);
+                                        const copied = copyToClipboard(link);
+                                        if (copied) {
+                                          triggerToast("Link de pago (Sandbox) copiado al portapapeles.", "success");
+                                        } else {
+                                          triggerToast("No se pudo copiar el link.", "error");
+                                        }
+                                      }}
+                                      title="Copiar link de pago Sandbox al portapapeles"
+                                    >
+                                      📋
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <span className="text-on-surface-muted italic text-[10px]">Sin link</span>
+                                )}
+                              </td>
+                              <td className="py-3">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-[10px]"
+                                  onClick={() => {
+                                    setSessionIdToPay(session.id);
+                                    const copied = copyToClipboard(session.id);
+                                    if (copied) {
+                                      triggerToast(`ID copiado al portapapeles y cargado: ${session.id}`, "success");
+                                    } else {
+                                      triggerToast(`Cargada sesión: ${session.id}`, "info");
+                                    }
+                                  }}
+                                  title="Copiar ID de sesión al portapapeles y cargar en el formulario"
+                                >
+                                  Copiar ID
+                                </Button>
+                              </td>
                               <td className="py-3 text-on-surface-muted text-[10px]">
                                 {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString()}
                               </td>
@@ -860,7 +1067,7 @@ export default function SimulatorPage() {
                           ))}
                           {dbInspector.checkoutSessions.length === 0 && (
                             <tr>
-                              <td colSpan={5} className="text-center py-10 text-on-surface-muted">
+                              <td colSpan={7} className="text-center py-10 text-on-surface-muted">
                                 No se encontraron sesiones de checkout.
                               </td>
                             </tr>

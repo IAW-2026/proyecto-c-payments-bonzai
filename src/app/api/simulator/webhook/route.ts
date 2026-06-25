@@ -50,11 +50,13 @@ export async function GET(request: NextRequest) {
     // Get checkout session IDs from transactions
     const sessionIds = Array.from(new Set(transactions.map(t => t.checkoutSessionId)));
 
-    // 3. Fetch Checkout Sessions
+    // 3. Fetch Checkout Sessions (direct fetch including payments relation to get the checkoutUrl)
     const checkoutSessions = await db.checkoutSession.findMany({
-      where: sessionIds.length > 0 ? { id: { in: sessionIds } } : undefined,
       orderBy: { createdAt: "desc" },
-      take: 15,
+      take: 20,
+      include: {
+        payments: true,
+      },
     });
 
     // 4. Fetch Ledger Entries

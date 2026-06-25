@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         checkoutSessionId: checkoutSession.id,
         provider: "MERCADOPAGO",
         preferenceId: preference.id || null,
-        checkoutUrl: preference.init_point || null,
+        checkoutUrl: preference.sandbox_init_point || preference.init_point || null,
         providerStatus: "pending",
       },
     });
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         transactionId: checkoutSession.id,
-        checkoutUrl: preference.init_point,
+        checkoutUrl: preference.sandbox_init_point || preference.init_point,
         sandboxUrl: preference.sandbox_init_point,
         status: "PENDING",
       },
