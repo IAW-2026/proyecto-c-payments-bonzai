@@ -107,6 +107,9 @@ export async function GET(request: NextRequest) {
     const walletInconsistencies: Array<{
       userId: string;
       walletTotal: number;
+      balance?: number;
+      walletBalance?: number;
+      totalBalance?: number;
       ledgerNet: number;
       difference: number;
     }> = [];
