@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@clerk/nextjs/server";
+import { getRoles } from "@/lib/auth";
 
 /**
  * GET /api/simulator/webhook
@@ -13,6 +14,11 @@ export async function GET(request: NextRequest) {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
+
+    const roles = await getRoles();
+    if (!roles.includes("payments_admin") && !roles.includes("admin") && !roles.includes("super_admin")) {
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -84,6 +90,11 @@ export async function POST(request: NextRequest) {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
+
+    const roles = await getRoles();
+    if (!roles.includes("payments_admin") && !roles.includes("admin") && !roles.includes("super_admin")) {
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
     const body = await request.json();

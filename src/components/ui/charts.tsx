@@ -532,7 +532,7 @@ export function DonutChart({
     return data.map((d, i) => {
       const percent = total > 0 ? (d.value / total) * 100 : 0;
       const strokeLength = (percent * circ) / 100;
-      const strokeOffset = circ - accumulatedPercent + (circ / 4); // Start at top (12 o'clock)
+      const strokeOffset = -accumulatedPercent;
       accumulatedPercent += strokeLength;
 
       return {
@@ -545,6 +545,17 @@ export function DonutChart({
       };
     });
   }, [data, total]);
+
+  const sortedSegments = useMemo(() => {
+    if (hoveredIndex === null) return segments;
+    const items = [...segments];
+    const idx = items.findIndex((_, i) => i === hoveredIndex);
+    if (idx !== -1) {
+      const [hovered] = items.splice(idx, 1);
+      items.push(hovered);
+    }
+    return items;
+  }, [segments, hoveredIndex]);
 
   if (total === 0) {
     return (
@@ -568,11 +579,12 @@ export function DonutChart({
             strokeOpacity={0.1}
             strokeWidth="14"
           />
-          {segments.map((seg, i) => {
-            const isHovered = hoveredIndex === i;
+          {/* 1. VISIBLE SEGMENTS (Handles drawing and styles. No mouse events.) */}
+          {sortedSegments.map((seg) => {
+            const isHovered = hoveredIndex !== null && segments[hoveredIndex]?.label === seg.label;
             return (
               <circle
-                key={i}
+                key={`visible-${seg.label}`}
                 cx="70"
                 cy="70"
                 r={seg.radius}
@@ -582,7 +594,24 @@ export function DonutChart({
                 strokeDasharray={`${seg.strokeLength} ${seg.circumference}`}
                 strokeDashoffset={seg.strokeOffset}
                 strokeLinecap="round"
-                className="transition-all duration-300 cursor-pointer origin-center"
+                className="transition-all duration-300 pointer-events-none origin-center"
+              />
+            );
+          })}
+          {/* 2. INTERACTIVE SEGMENTS (Transparent, static in DOM, captures mouse events) */}
+          {segments.map((seg, i) => {
+            return (
+              <circle
+                key={`interactive-${seg.label}`}
+                cx="70"
+                cy="70"
+                r={seg.radius}
+                fill="none"
+                stroke="transparent"
+                strokeWidth="20"
+                strokeDasharray={`${seg.strokeLength} ${seg.circumference}`}
+                strokeDashoffset={seg.strokeOffset}
+                className="cursor-pointer origin-center"
                 onMouseEnter={() => setHoveredIndex(i)}
                 onMouseLeave={() => setHoveredIndex(null)}
               />

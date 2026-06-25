@@ -17,6 +17,7 @@ const adminNavItems = [
   { href: "/admin/disputes", label: "Disputas", icon: "⚖️" },
   { href: "/admin/ledger", label: "Libro Mayor", icon: "📒" },
   { href: "/admin/wallets", label: "Billeteras", icon: "👛" },
+  { href: "/admin/simulator", label: "Simulador", icon: "⚙️" },
 ];
 
 export default async function AdminLayout({
