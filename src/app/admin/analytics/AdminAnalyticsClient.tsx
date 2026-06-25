@@ -119,7 +119,7 @@ export default function AdminAnalyticsClient({
     let totalCount = filteredTxs.length;
 
     filteredTxs.forEach((t) => {
-      if (t.status === "COMPLETED") {
+      if (t.status !== "PENDING" && t.status !== "REFUNDED") {
         gmv += t.amount;
         commissions += t.commissionAmount;
         completedCount++;
@@ -144,7 +144,7 @@ export default function AdminAnalyticsClient({
     const buyers: { [key: string]: number } = {};
 
     filteredTxs.forEach((t) => {
-      if (t.status !== "COMPLETED") return;
+      if (t.status === "PENDING" || t.status === "REFUNDED") return;
       sellers[t.sellerId] = (sellers[t.sellerId] || 0) + t.amount;
       buyers[t.buyerId] = (buyers[t.buyerId] || 0) + t.amount;
     });
@@ -180,7 +180,7 @@ export default function AdminAnalyticsClient({
       }
 
       filteredTxs.forEach((t) => {
-        if (t.status !== "COMPLETED") return;
+        if (t.status === "PENDING" || t.status === "REFUNDED") return;
         const key = t.date.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
         if (grouped[key]) {
           grouped[key].gmv += t.amount;
@@ -198,7 +198,7 @@ export default function AdminAnalyticsClient({
       }
 
       filteredTxs.forEach((t) => {
-        if (t.status !== "COMPLETED") return;
+        if (t.status === "PENDING" || t.status === "REFUNDED") return;
         const diffDays = Math.floor((now.getTime() - t.date.getTime()) / (1000 * 60 * 60 * 24));
         const weekIdx = 12 - Math.floor(diffDays / 7);
         if (weekIdx >= 0 && weekIdx <= 12) {
@@ -230,7 +230,7 @@ export default function AdminAnalyticsClient({
       }
 
       filteredTxs.forEach((t) => {
-        if (t.status !== "COMPLETED") return;
+        if (t.status === "PENDING" || t.status === "REFUNDED") return;
         const key = t.date.toLocaleDateString("es-AR", { month: "short", year: "2-digit" });
         if (grouped[key]) {
           grouped[key].gmv += t.amount;

@@ -222,6 +222,19 @@ export async function POST(request: NextRequest) {
             },
           });
 
+          // Actualizar/Crear wallet de la plataforma para acumular comisiones ganadas
+          await db.wallet.upsert({
+            where: { userId: "platform" },
+            create: {
+              userId: "platform",
+              availableBalance: txn.commissionAmount,
+              heldBalance: 0,
+            },
+            update: {
+              availableBalance: { increment: txn.commissionAmount },
+            },
+          });
+
           // Actualizar wallet del vendedor
           await db.wallet.upsert({
             where: { userId: txn.sellerId },

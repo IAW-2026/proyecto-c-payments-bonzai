@@ -145,6 +145,19 @@ export async function POST(
           description: `Reembolso de comisión (${resolution}) — ${transaction.orderId}`,
         },
       });
+
+      // Descontar la comisión reembolsada de la wallet de la plataforma
+      await db.wallet.upsert({
+        where: { userId: "platform" },
+        create: {
+          userId: "platform",
+          availableBalance: -transaction.commissionAmount,
+          heldBalance: 0,
+        },
+        update: {
+          availableBalance: { decrement: transaction.commissionAmount },
+        },
+      });
     }
 
     return NextResponse.json({

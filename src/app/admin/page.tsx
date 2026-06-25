@@ -17,11 +17,14 @@ function formatCurrency(amount: number): string {
 export default async function AdminDashboardPage() {
   await requireRole(["payments_admin", "admin"]);
 
-  // 1. Total transactions count
-  const totalTransactions = await db.transaction.count();
+  // 1. Total transactions count (excluding pending drafts)
+  const totalTransactions = await db.transaction.count({
+    where: { status: { not: "PENDING" } },
+  });
 
-  // 2. Sum of transaction amounts (total volume)
+  // 2. Sum of transaction amounts (total volume of non-pending transactions)
   const volumeResult = await db.transaction.aggregate({
+    where: { status: { not: "PENDING" } },
     _sum: { amount: true },
   });
   const totalVolume = Number(volumeResult._sum.amount || 0);
@@ -31,8 +34,9 @@ export default async function AdminDashboardPage() {
     where: { resolvedAt: null },
   });
 
-  // 4. Sum of commission amounts (total commission generated)
+  // 4. Sum of commission amounts (total commission generated from non-pending transactions)
   const commissionResult = await db.transaction.aggregate({
+    where: { status: { not: "PENDING" } },
     _sum: { commissionAmount: true },
   });
   const totalCommission = Number(commissionResult._sum.commissionAmount || 0);

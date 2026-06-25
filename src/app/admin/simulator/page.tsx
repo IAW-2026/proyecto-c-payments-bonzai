@@ -111,6 +111,7 @@ export default function SimulatorPage() {
   const [webhookLoading, setWebhookLoading] = useState(false);
   const [webhookResponse, setWebhookResponse] = useState<any>(null);
   const [webhookPayload, setWebhookPayload] = useState<any>(null);
+  const [deliveryLoading, setDeliveryLoading] = useState<string | null>(null);
 
   // Database Inspector state
   const [dbInspector, setDbInspector] = useState<{
@@ -350,6 +351,29 @@ export default function SimulatorPage() {
       triggerToast("Error al invocar el proxy del webhook.", "error");
     } finally {
       setWebhookLoading(false);
+    }
+  };
+
+  // Run delivery simulator (marks order as DELIVERED)
+  const handleSimulateDelivery = async (orderId: string) => {
+    setDeliveryLoading(orderId);
+    try {
+      const response = await fetch("/api/simulator/delivery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        triggerToast(`Orden ${orderId.substring(0, 8)} marcada como ENTREGADA (fondos en escrow).`, "success");
+        setTimeout(fetchDbState, 800);
+      } else {
+        triggerToast(data.responseReceived?.message || data.message || "Error al simular la entrega.", "error");
+      }
+    } catch (err: any) {
+      triggerToast(err.message || "Error al conectar con el servidor.", "error");
+    } finally {
+      setDeliveryLoading(null);
     }
   };
 
@@ -875,23 +899,37 @@ export default function SimulatorPage() {
                                 <StatusBadge status={tx.status} size="sm" />
                               </td>
                               <td className="py-3">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 px-2 text-[10px]"
-                                  onClick={() => {
-                                    setSessionIdToPay(tx.checkoutSessionId);
-                                    const copied = copyToClipboard(tx.checkoutSessionId);
-                                    if (copied) {
-                                      triggerToast(`ID copiado y cargado: ${tx.checkoutSessionId}`, "success");
-                                    } else {
-                                      triggerToast(`Cargada sesión: ${tx.checkoutSessionId}`, "info");
-                                    }
-                                  }}
-                                  title="Copiar ID de sesión al portapapeles y cargar en el formulario"
-                                >
-                                  Copiar Sesión
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-[10px]"
+                                    onClick={() => {
+                                      setSessionIdToPay(tx.checkoutSessionId);
+                                      const copied = copyToClipboard(tx.checkoutSessionId);
+                                      if (copied) {
+                                        triggerToast(`ID copiado y cargado: ${tx.checkoutSessionId}`, "success");
+                                      } else {
+                                        triggerToast(`Cargada sesión: ${tx.checkoutSessionId}`, "info");
+                                      }
+                                    }}
+                                    title="Copiar ID de sesión al portapapeles y cargar en el formulario"
+                                  >
+                                    Copiar Sesión
+                                  </Button>
+                                  {tx.status === "HELD" && (
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className="h-6 px-2 text-[10px] bg-amber-600/10 text-amber-600 border border-amber-600/25 hover:bg-amber-600 hover:text-white transition-all font-medium flex items-center gap-1"
+                                      onClick={() => handleSimulateDelivery(tx.orderId)}
+                                      disabled={deliveryLoading === tx.orderId}
+                                      title="Simular entrega del producto (mueve transacción a DELIVERED)"
+                                    >
+                                      {deliveryLoading === tx.orderId ? "Enviando..." : "🚚 Entregar"}
+                                    </Button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}

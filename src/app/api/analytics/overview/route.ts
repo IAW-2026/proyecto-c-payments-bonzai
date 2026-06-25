@@ -23,14 +23,18 @@ export async function GET(request: NextRequest) {
       statusCounts,
     ] = await Promise.all([
       // Total transacciones
-      db.transaction.count(),
+      db.transaction.count({
+        where: { status: { not: "PENDING" } },
+      }),
       // Volumen total
       db.transaction.aggregate({
+        where: { status: { not: "PENDING" } },
         _sum: { amount: true },
         _avg: { amount: true },
       }),
       // Comisiones totales
       db.transaction.aggregate({
+        where: { status: { not: "PENDING" } },
         _sum: { commissionAmount: true },
       }),
       // Total disputas

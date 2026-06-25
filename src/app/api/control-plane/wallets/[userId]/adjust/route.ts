@@ -147,6 +147,21 @@ export async function POST(
         },
       });
 
+      // Reflejar la contra-partida en la wallet de la plataforma
+      await tx.wallet.upsert({
+        where: { userId: "platform" },
+        create: {
+          userId: "platform",
+          availableBalance: type === "CREDIT" ? -amount : amount,
+          heldBalance: 0,
+        },
+        update: {
+          availableBalance: {
+            [type === "CREDIT" ? "decrement" : "increment"]: amount,
+          },
+        },
+      });
+
       return w;
     });
 

@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Fetch Wallets
     const wallets = await db.wallet.findMany({
-      where: userIds.length > 0 ? { userId: { in: userIds } } : undefined,
+      where: userIds.length > 0 ? { userId: { in: [...userIds, "platform"] } } : undefined,
       orderBy: { updatedAt: "desc" },
     });
 
