@@ -116,26 +116,40 @@ export async function GET(request: NextRequest) {
       const walletTotal =
         toNumber(wallet.availableBalance) + toNumber(wallet.heldBalance);
 
-      // Calcular neto del ledger para este usuario
-      const [userCredits, userDebits] = await Promise.all([
-        db.ledgerEntry.aggregate({
-          where: { userId, type: "CREDIT" },
-          _sum: { amount: true },
-        }),
-        db.ledgerEntry.aggregate({
-          where: { userId, type: "DEBIT" },
-          _sum: { amount: true },
-        }),
-      ]);
+      // Calcular neto del ledger para este usuario, excluyendo débitos de pagos externos (Mercado Pago)
+      const userEntries = await db.ledgerEntry.findMany({
+        where: { userId },
+        include: {
+          transaction: true,
+        },
+      });
 
-      const ledgerNet =
-        toNumber(userCredits._sum.amount) - toNumber(userDebits._sum.amount);
+      let ledgerNet = 0;
+      for (const entry of userEntries) {
+        const amount = toNumber(entry.amount);
+        if (entry.type === "CREDIT") {
+          ledgerNet += amount;
+        } else if (entry.type === "DEBIT") {
+          // Excluir débitos al comprador que representan pagos externos (Mercado Pago)
+          const isExternalPaymentDebit =
+            entry.transaction.buyerId === userId &&
+            entry.transaction.id !== "system-adjustments-txn";
+          if (!isExternalPaymentDebit) {
+            ledgerNet -= amount;
+          }
+        }
+      }
+
       const diff = Math.abs(walletTotal - ledgerNet);
 
       if (diff >= 0.01) {
+        const roundedWalletTotal = Math.round(walletTotal * 100) / 100;
         walletInconsistencies.push({
           userId,
-          walletTotal: Math.round(walletTotal * 100) / 100,
+          balance: roundedWalletTotal,
+          walletBalance: roundedWalletTotal,
+          totalBalance: roundedWalletTotal,
+          walletTotal: roundedWalletTotal,
           ledgerNet: Math.round(ledgerNet * 100) / 100,
           difference: Math.round(diff * 100) / 100,
         });

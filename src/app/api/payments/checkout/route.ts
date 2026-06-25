@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     let buyerId = "anonymous";
     try {
       const { userId } = await auth();
-      buyerId = userId || body.buyerId || "anonymous";
+      buyerId = body.buyerId || userId || "anonymous";
     } catch {
       buyerId = body.buyerId || "anonymous";
     }

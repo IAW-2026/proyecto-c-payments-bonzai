@@ -21,6 +21,9 @@ export default async function WalletPage() {
   // Fetch movements (ledger entries) for current user
   const data = await db.ledgerEntry.findMany({
     where: { userId },
+    include: {
+      transaction: true,
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -32,13 +35,22 @@ export default async function WalletPage() {
     currency: "ARS",
   };
 
-  const movements = data.map((e) => ({
-    id: e.id,
-    type: e.type,
-    amount: Number(e.amount),
-    description: e.description || "",
-    createdAt: e.createdAt.toISOString(),
-  }));
+  const movements = data
+    .filter((e) => {
+      // Exclude debits to the buyer that represent external payments via Mercado Pago
+      const isExternalPaymentDebit =
+        e.type === "DEBIT" &&
+        e.transaction.buyerId === userId &&
+        e.transaction.id !== "system-adjustments-txn";
+      return !isExternalPaymentDebit;
+    })
+    .map((e) => ({
+      id: e.id,
+      type: e.type,
+      amount: Number(e.amount),
+      description: e.description || "",
+      createdAt: e.createdAt.toISOString(),
+    }));
 
   return <DashboardWalletClient initialWallet={walletData} initialMovements={movements} />;
 }
