@@ -77,9 +77,9 @@ export async function GET(request: NextRequest) {
     const avgCommissionRate =
       transactions.length > 0
         ? transactions.reduce(
-            (sum, t) => sum + toNumber(t.commissionRate),
-            0
-          ) / transactions.length
+          (sum, t) => sum + toNumber(t.commissionRate),
+          0
+        ) / transactions.length
         : 0;
 
     return NextResponse.json({
